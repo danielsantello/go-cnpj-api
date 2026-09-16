@@ -1,0 +1,13 @@
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Build output
+bin/
+/cnpj-api
+
+# Test and profiling output
+coverage.out
+*.test
+*.prof
