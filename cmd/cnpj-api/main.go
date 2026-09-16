@@ -1,7 +1,15 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+
+	"github.com/danielsantello/go-cnpj-api/internal/cli"
+)
 
 func main() {
-	fmt.Println("cnpj-api")
+	if err := cli.Run(os.Args[1:]); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }
