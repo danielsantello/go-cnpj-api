@@ -5,11 +5,18 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/danielsantello/go-cnpj-api/internal/config"
 	"github.com/danielsantello/go-cnpj-api/internal/httpapi"
 )
 
 func serve() error {
-	server := httpapi.NewServer(":8080")
+	configuration := config.Load()
+
+	if err := config.Validate(configuration); err != nil {
+		return fmt.Errorf("validate configuration: %w", err)
+	}
+
+	server := httpapi.NewServer(configuration.HTTPAddress)
 
 	fmt.Printf("server listening on %s\n", server.Addr)
 
