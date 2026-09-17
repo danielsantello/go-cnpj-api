@@ -13,6 +13,8 @@ import (
 	"github.com/danielsantello/go-cnpj-api/internal/config"
 	"github.com/danielsantello/go-cnpj-api/internal/database"
 	"github.com/danielsantello/go-cnpj-api/internal/httpapi"
+
+	mysqlstorage "github.com/danielsantello/go-cnpj-api/internal/storage/mysql"
 )
 
 func serve() error {
@@ -59,6 +61,37 @@ func serve() error {
 		"MySQL connection established",
 		"host", configuration.MySQLHost,
 		"port", configuration.MySQLPort,
+	)
+
+	schemaContext, cancelSchema := context.WithTimeout(
+		context.Background(),
+		configuration.MySQLConnectTimeout,
+	)
+
+	metadata, err := mysqlstorage.ReadMetadata(
+		schemaContext,
+		mysqlDatabase,
+	)
+	if err == nil {
+		err = mysqlstorage.ValidateSchema(
+			schemaContext,
+			mysqlDatabase,
+			metadata.FormatVersion,
+		)
+	}
+
+	cancelSchema()
+
+	if err != nil {
+		return fmt.Errorf("initialize database schema: %w", err)
+	}
+
+	slog.Info(
+		"database schema validated",
+		"format_version", metadata.FormatVersion,
+		"reference_year", metadata.ReferenceYear,
+		"reference_month", metadata.ReferenceMonth,
+		"created_at_utc", metadata.CreatedAtUTC,
 	)
 
 	server := httpapi.NewServer(
