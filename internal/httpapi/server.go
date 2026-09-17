@@ -5,9 +5,16 @@ import (
 	"time"
 )
 
-func NewServer(address string) *http.Server {
+func NewServer(
+	address string,
+	mysql MySQLPinger,
+	healthCheckTimeout time.Duration,
+) *http.Server {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /health", healthHandler)
+	mux.HandleFunc(
+		"GET /health",
+		newHealthHandler(mysql, healthCheckTimeout),
+	)
 
 	return &http.Server{
 		Addr:              address,

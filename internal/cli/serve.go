@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/danielsantello/go-cnpj-api/internal/config"
+	"github.com/danielsantello/go-cnpj-api/internal/database"
 	"github.com/danielsantello/go-cnpj-api/internal/httpapi"
 )
 
@@ -24,7 +25,46 @@ func serve() error {
 		return fmt.Errorf("validate configuration: %w", err)
 	}
 
-	server := httpapi.NewServer(configuration.HTTPAddress)
+	mysqlDatabase, err := database.OpenMySQL(database.MySQLConfig{
+		Host:           configuration.MySQLHost,
+		Port:           configuration.MySQLPort,
+		User:           configuration.MySQLUser,
+		Password:       configuration.MySQLPassword,
+		ConnectTimeout: configuration.MySQLConnectTimeout,
+	})
+	if err != nil {
+		return fmt.Errorf("open MySQL: %w", err)
+	}
+
+	defer func() {
+		if err := mysqlDatabase.Close(); err != nil {
+			slog.Error("failed to close MySQL pool", "error", err)
+		}
+	}()
+
+	pingContext, cancelPing := context.WithTimeout(
+		context.Background(),
+		configuration.MySQLConnectTimeout,
+	)
+
+	err = database.Ping(pingContext, mysqlDatabase)
+	cancelPing()
+
+	if err != nil {
+		return fmt.Errorf("verify MySQL connection: %w", err)
+	}
+
+	slog.Info(
+		"MySQL connection established",
+		"host", configuration.MySQLHost,
+		"port", configuration.MySQLPort,
+	)
+
+	server := httpapi.NewServer(
+		configuration.HTTPAddress,
+		mysqlDatabase,
+		configuration.MySQLConnectTimeout,
+	)
 
 	// signalContext is canceled when the process receives SIGINT or SIGTERM.
 	signalContext, stop := signal.NotifyContext(
