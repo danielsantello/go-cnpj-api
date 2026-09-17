@@ -28,6 +28,7 @@ func serve() error {
 	mysqlDatabase, err := database.OpenMySQL(database.MySQLConfig{
 		Host:           configuration.MySQLHost,
 		Port:           configuration.MySQLPort,
+		Database:       configuration.MySQLDatabase,
 		User:           configuration.MySQLUser,
 		Password:       configuration.MySQLPassword,
 		ConnectTimeout: configuration.MySQLConnectTimeout,

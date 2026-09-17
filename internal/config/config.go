@@ -20,6 +20,7 @@ const (
 	mysqlUserEnvironmentVariable           = "CNPJ_API_MYSQL_USER"
 	mysqlPasswordEnvironmentVariable       = "CNPJ_API_MYSQL_PASSWORD"
 	mysqlConnectTimeoutEnvironmentVariable = "CNPJ_API_MYSQL_CONNECT_TIMEOUT"
+	mysqlDatabaseEnvironmentVariable       = "CNPJ_API_MYSQL_DATABASE"
 
 	defaultMySQLHost           = "127.0.0.1"
 	defaultMySQLPort           = uint16(3306)
@@ -31,6 +32,7 @@ type Config struct {
 	ShutdownTimeout     time.Duration
 	MySQLHost           string
 	MySQLPort           uint16
+	MySQLDatabase       string
 	MySQLUser           string
 	MySQLPassword       string
 	MySQLConnectTimeout time.Duration
@@ -83,6 +85,10 @@ func Load() (Config, error) {
 		config.MySQLPort = uint16(port)
 	}
 
+	if value, exists := os.LookupEnv(mysqlDatabaseEnvironmentVariable); exists {
+		config.MySQLDatabase = value
+	}
+
 	if value, exists := os.LookupEnv(mysqlUserEnvironmentVariable); exists {
 		config.MySQLUser = value
 	}
@@ -126,6 +132,10 @@ func Validate(config Config) error {
 
 	if config.MySQLPort == 0 {
 		return fmt.Errorf("%s must be greater than zero", mysqlPortEnvironmentVariable)
+	}
+
+	if strings.TrimSpace(config.MySQLDatabase) == "" {
+		return fmt.Errorf("%s must not be empty", mysqlDatabaseEnvironmentVariable)
 	}
 
 	if strings.TrimSpace(config.MySQLUser) == "" {

@@ -13,6 +13,7 @@ import (
 type MySQLConfig struct {
 	Host           string
 	Port           uint16
+	Database       string
 	User           string
 	Password       string
 	ConnectTimeout time.Duration
@@ -28,6 +29,7 @@ func OpenMySQL(config MySQLConfig) (*sql.DB, error) {
 	)
 	driverConfig.User = config.User
 	driverConfig.Passwd = config.Password
+	driverConfig.DBName = config.Database
 	driverConfig.ParseTime = true
 	driverConfig.Loc = time.UTC
 	driverConfig.Timeout = config.ConnectTimeout

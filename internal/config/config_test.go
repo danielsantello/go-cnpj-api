@@ -44,6 +44,10 @@ func TestDefault(t *testing.T) {
 		)
 	}
 
+	if config.MySQLDatabase != "" {
+		t.Fatal("expected empty default MySQL database")
+	}
+
 	if config.MySQLUser != "" {
 		t.Fatal("expected empty default MySQL user")
 	}
@@ -149,6 +153,7 @@ func TestValidateRejectsNonPositiveShutdownTimeout(t *testing.T) {
 func TestLoadOverridesMySQLConfigurationFromEnvironment(t *testing.T) {
 	t.Setenv(mysqlHostEnvironmentVariable, "mysql")
 	t.Setenv(mysqlPortEnvironmentVariable, "3307")
+	t.Setenv(mysqlDatabaseEnvironmentVariable, "cnpj_2026_08_001")
 	t.Setenv(mysqlUserEnvironmentVariable, "cnpj_api")
 	t.Setenv(mysqlPasswordEnvironmentVariable, "secret")
 	t.Setenv(mysqlConnectTimeoutEnvironmentVariable, "8s")
@@ -171,6 +176,14 @@ func TestLoadOverridesMySQLConfigurationFromEnvironment(t *testing.T) {
 			"expected MySQL port %d, got %d",
 			3307,
 			config.MySQLPort,
+		)
+	}
+
+	if config.MySQLDatabase != "cnpj_2026_08_001" {
+		t.Fatalf(
+			"expected MySQL database %q, got %q",
+			"cnpj_2026_08_001",
+			config.MySQLDatabase,
 		)
 	}
 
@@ -217,6 +230,7 @@ func TestLoadRejectsInvalidMySQLConnectTimeout(t *testing.T) {
 
 func validConfig() Config {
 	config := Default()
+	config.MySQLDatabase = "cnpj_2026_08_001"
 	config.MySQLUser = "cnpj_api"
 	config.MySQLPassword = "secret"
 
@@ -235,6 +249,15 @@ func TestValidateRejectsEmptyMySQLHost(t *testing.T) {
 func TestValidateRejectsZeroMySQLPort(t *testing.T) {
 	config := validConfig()
 	config.MySQLPort = 0
+
+	if err := Validate(config); err == nil {
+		t.Fatal("expected validation error, got nil")
+	}
+}
+
+func TestValidateRejectsEmptyMySQLDatabase(t *testing.T) {
+	config := validConfig()
+	config.MySQLDatabase = ""
 
 	if err := Validate(config); err == nil {
 		t.Fatal("expected validation error, got nil")
