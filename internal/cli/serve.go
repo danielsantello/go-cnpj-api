@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -35,7 +36,7 @@ func serve() error {
 
 	serverError := make(chan error, 1)
 
-	fmt.Printf("server listening on %s\n", server.Addr)
+	slog.Info("HTTP server listening", "address", server.Addr)
 
 	go func() {
 		serverError <- server.ListenAndServe()
@@ -51,7 +52,7 @@ func serve() error {
 
 	case <-signalContext.Done():
 		stop()
-		fmt.Println("shutting down server")
+		slog.Info("shutting down HTTP server")
 	}
 
 	shutdownContext, cancel := context.WithTimeout(
@@ -68,7 +69,7 @@ func serve() error {
 		return fmt.Errorf("stop HTTP server: %w", err)
 	}
 
-	fmt.Println("server stopped")
+	slog.Info("HTTP server stopped")
 
 	return nil
 }
