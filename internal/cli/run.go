@@ -10,6 +10,8 @@ func Run(args []string) error {
 	switch args[0] {
 	case "serve":
 		return serve()
+	case "database":
+		return runDatabase(args[1:])
 	default:
 		return fmt.Errorf("unknown command: %s", args[0])
 	}

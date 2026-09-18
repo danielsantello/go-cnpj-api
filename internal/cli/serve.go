@@ -11,10 +11,7 @@ import (
 	"syscall"
 
 	"github.com/danielsantello/go-cnpj-api/internal/config"
-	"github.com/danielsantello/go-cnpj-api/internal/database"
 	"github.com/danielsantello/go-cnpj-api/internal/httpapi"
-
-	mysqlstorage "github.com/danielsantello/go-cnpj-api/internal/storage/mysql"
 )
 
 func serve() error {
@@ -27,72 +24,11 @@ func serve() error {
 		return fmt.Errorf("validate configuration: %w", err)
 	}
 
-	mysqlDatabase, err := database.OpenMySQL(database.MySQLConfig{
-		Host:           configuration.MySQLHost,
-		Port:           configuration.MySQLPort,
-		Database:       configuration.MySQLDatabase,
-		User:           configuration.MySQLUser,
-		Password:       configuration.MySQLPassword,
-		ConnectTimeout: configuration.MySQLConnectTimeout,
-	})
+	mysqlDatabase, _, err := initializeMySQL(configuration)
 	if err != nil {
-		return fmt.Errorf("open MySQL: %w", err)
+		return err
 	}
-
-	defer func() {
-		if err := mysqlDatabase.Close(); err != nil {
-			slog.Error("failed to close MySQL pool", "error", err)
-		}
-	}()
-
-	pingContext, cancelPing := context.WithTimeout(
-		context.Background(),
-		configuration.MySQLConnectTimeout,
-	)
-
-	err = database.Ping(pingContext, mysqlDatabase)
-	cancelPing()
-
-	if err != nil {
-		return fmt.Errorf("verify MySQL connection: %w", err)
-	}
-
-	slog.Info(
-		"MySQL connection established",
-		"host", configuration.MySQLHost,
-		"port", configuration.MySQLPort,
-	)
-
-	schemaContext, cancelSchema := context.WithTimeout(
-		context.Background(),
-		configuration.MySQLConnectTimeout,
-	)
-
-	metadata, err := mysqlstorage.ReadMetadata(
-		schemaContext,
-		mysqlDatabase,
-	)
-	if err == nil {
-		err = mysqlstorage.ValidateSchema(
-			schemaContext,
-			mysqlDatabase,
-			metadata.FormatVersion,
-		)
-	}
-
-	cancelSchema()
-
-	if err != nil {
-		return fmt.Errorf("initialize database schema: %w", err)
-	}
-
-	slog.Info(
-		"database schema validated",
-		"format_version", metadata.FormatVersion,
-		"reference_year", metadata.ReferenceYear,
-		"reference_month", metadata.ReferenceMonth,
-		"created_at_utc", metadata.CreatedAtUTC,
-	)
+	defer closeMySQL(mysqlDatabase)
 
 	server := httpapi.NewServer(
 		configuration.HTTPAddress,
