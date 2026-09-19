@@ -21,7 +21,7 @@ func (stub mysqlPingerStub) PingContext(_ context.Context) error {
 func TestHealthReturnsHealthyWhenMySQLIsAvailable(t *testing.T) {
 	mysql := mysqlPingerStub{}
 
-	server := NewServer(":0", mysql, time.Second)
+	server := NewServer(":0", mysql, time.Second, nil)
 
 	request := httptest.NewRequest(http.MethodGet, "/health", nil)
 	response := httptest.NewRecorder()
@@ -69,7 +69,7 @@ func TestHealthReturnsUnhealthyWhenMySQLIsUnavailable(t *testing.T) {
 		err: errors.New("MySQL unavailable"),
 	}
 
-	server := NewServer(":0", mysql, time.Second)
+	server := NewServer(":0", mysql, time.Second, nil)
 
 	request := httptest.NewRequest(http.MethodGet, "/health", nil)
 	response := httptest.NewRecorder()

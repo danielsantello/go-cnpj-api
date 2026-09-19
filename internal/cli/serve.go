@@ -10,8 +10,10 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/danielsantello/go-cnpj-api/internal/company"
 	"github.com/danielsantello/go-cnpj-api/internal/config"
 	"github.com/danielsantello/go-cnpj-api/internal/httpapi"
+	mysqlstorage "github.com/danielsantello/go-cnpj-api/internal/storage/mysql"
 )
 
 func serve() error {
@@ -24,16 +26,27 @@ func serve() error {
 		return fmt.Errorf("validate configuration: %w", err)
 	}
 
-	mysqlDatabase, _, err := initializeMySQL(configuration)
+	mysqlDatabase, formatVersion, err := initializeMySQL(configuration)
 	if err != nil {
 		return err
 	}
 	defer closeMySQL(mysqlDatabase)
 
+	companyRepository, err := mysqlstorage.NewCompanyRepository(
+		mysqlDatabase,
+		formatVersion,
+	)
+	if err != nil {
+		return fmt.Errorf("initialize company repository: %w", err)
+	}
+
+	companyService := company.NewService(companyRepository)
+
 	server := httpapi.NewServer(
 		configuration.HTTPAddress,
 		mysqlDatabase,
 		configuration.MySQLConnectTimeout,
+		companyService,
 	)
 
 	// signalContext is canceled when the process receives SIGINT or SIGTERM.

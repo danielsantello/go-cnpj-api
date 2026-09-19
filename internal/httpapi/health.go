@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"net/http"
 	"time"
@@ -56,12 +55,7 @@ func newHealthHandler(mysql MySQLPinger, timeout time.Duration) http.HandlerFunc
 			payload.Services.MySQL.Status = "unavailable"
 		}
 
-		response.Header().Set("Content-Type", "application/json")
-		response.WriteHeader(statusCode)
-
-		encoder := json.NewEncoder(response)
-
-		if err := encoder.Encode(payload); err != nil {
+		if err := writeJSON(response, statusCode, payload); err != nil {
 			slog.Error("failed to encode health response", "error", err)
 		}
 	}
