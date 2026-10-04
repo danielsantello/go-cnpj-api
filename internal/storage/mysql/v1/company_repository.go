@@ -334,6 +334,19 @@ func (repository *CompanyRepository) FindByCNPJ(
 
 	details.SimpleTax = simpleTax
 
+	partners, err := repository.findPartners(
+		ctx,
+		details.Company.BasicCNPJ,
+	)
+	if err != nil {
+		return company.Details{}, fmt.Errorf(
+			"find partners: %w",
+			err,
+		)
+	}
+
+	details.Partners = partners
+
 	return details, nil
 }
 

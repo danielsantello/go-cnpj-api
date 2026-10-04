@@ -11,6 +11,7 @@ type Details struct {
 	Company       Company       `json:"company"`
 	Establishment Establishment `json:"establishment"`
 	SimpleTax     *SimpleTax    `json:"simple_tax"`
+	Partners      []Partner     `json:"partners"`
 }
 
 type Repository interface {

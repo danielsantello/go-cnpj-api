@@ -373,3 +373,97 @@ func TestTaxOptionIndicatorReturnsNilForUnknownValue(t *testing.T) {
 		t.Fatalf("expected nil indicator, got %t", *result)
 	}
 }
+
+func TestPartnerTypeMapsKnownCode(t *testing.T) {
+	result := partnerType("2")
+
+	if result.Code != "2" {
+		t.Fatalf("expected code %q, got %q", "2", result.Code)
+	}
+
+	if result.Description == nil {
+		t.Fatal("expected partner type description, got nil")
+	}
+
+	expected := "PESSOA FÍSICA"
+
+	if *result.Description != expected {
+		t.Fatalf(
+			"expected description %q, got %q",
+			expected,
+			*result.Description,
+		)
+	}
+}
+
+func TestPartnerTypePreservesUnknownCode(t *testing.T) {
+	result := partnerType("9")
+
+	if result.Code != "9" {
+		t.Fatalf("expected code %q, got %q", "9", result.Code)
+	}
+
+	if result.Description != nil {
+		t.Fatalf(
+			"expected nil description, got %q",
+			*result.Description,
+		)
+	}
+}
+
+func TestAgeRangeReturnsNilForMissingCode(t *testing.T) {
+	result := ageRange(nil)
+
+	if result != nil {
+		t.Fatalf("expected nil age range, got %#v", result)
+	}
+}
+
+func TestAgeRangeMapsKnownCode(t *testing.T) {
+	code := "5"
+
+	result := ageRange(&code)
+
+	if result == nil {
+		t.Fatal("expected age range, got nil")
+	}
+
+	if result.Code != code {
+		t.Fatalf("expected code %q, got %q", code, result.Code)
+	}
+
+	if result.Description == nil {
+		t.Fatal("expected age range description, got nil")
+	}
+
+	expected := "ENTRE 41 E 50 ANOS"
+
+	if *result.Description != expected {
+		t.Fatalf(
+			"expected description %q, got %q",
+			expected,
+			*result.Description,
+		)
+	}
+}
+
+func TestAgeRangePreservesUnknownCode(t *testing.T) {
+	code := "X"
+
+	result := ageRange(&code)
+
+	if result == nil {
+		t.Fatal("expected age range, got nil")
+	}
+
+	if result.Code != code {
+		t.Fatalf("expected code %q, got %q", code, result.Code)
+	}
+
+	if result.Description != nil {
+		t.Fatalf(
+			"expected nil description, got %q",
+			*result.Description,
+		)
+	}
+}

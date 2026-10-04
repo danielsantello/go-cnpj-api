@@ -57,6 +57,8 @@ func TestCompanyRepositoryFindByCNPJIntegration(t *testing.T) {
 				ON company.cnpj_root = establishment.cnpj_root
 			JOIN simple_tax_options AS simple_tax
 				ON simple_tax.cnpj_root = establishment.cnpj_root
+			JOIN partners AS partner
+				ON partner.cnpj_root = establishment.cnpj_root
 			WHERE establishment.secondary_economic_activities IS NOT NULL
 				AND establishment.secondary_economic_activities <> ''
 			LIMIT 1
@@ -111,6 +113,43 @@ func TestCompanyRepositoryFindByCNPJIntegration(t *testing.T) {
 				"expected simple tax date in YYYY-MM-DD format, got %q",
 				*date,
 			)
+		}
+	}
+
+	if details.Partners == nil {
+		t.Fatal("expected partners collection, got nil")
+	}
+
+	if len(details.Partners) == 0 {
+		t.Fatal("expected partners, got empty collection")
+	}
+
+	for index, partner := range details.Partners {
+		if partner.Type.Code == "" {
+			t.Fatalf(
+				"expected partner type code at index %d",
+				index,
+			)
+		}
+
+		if partner.Name == "" {
+			t.Fatalf(
+				"expected partner name at index %d",
+				index,
+			)
+		}
+
+		if partner.EntryDate != nil {
+			if _, err := time.Parse(
+				time.DateOnly,
+				*partner.EntryDate,
+			); err != nil {
+				t.Fatalf(
+					"expected partner entry date in YYYY-MM-DD format at index %d, got %q",
+					index,
+					*partner.EntryDate,
+				)
+			}
 		}
 	}
 

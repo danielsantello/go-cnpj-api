@@ -131,3 +131,52 @@ func taxOptionIndicator(value *string) *bool {
 
 	return &result
 }
+
+var partnerTypeDescriptions = map[string]string{
+	"1": "PESSOA JURÍDICA",
+	"2": "PESSOA FÍSICA",
+	"3": "ESTRANGEIRO",
+}
+
+var ageRangeDescriptions = map[string]string{
+	"0": "NÃO SE APLICA",
+	"1": "ENTRE 0 E 12 ANOS",
+	"2": "ENTRE 13 E 20 ANOS",
+	"3": "ENTRE 21 E 30 ANOS",
+	"4": "ENTRE 31 E 40 ANOS",
+	"5": "ENTRE 41 E 50 ANOS",
+	"6": "ENTRE 51 E 60 ANOS",
+	"7": "ENTRE 61 E 70 ANOS",
+	"8": "ENTRE 71 E 80 ANOS",
+	"9": "MAIOR DE 80 ANOS",
+}
+
+func partnerType(code string) company.CodeDescription {
+	result := company.CodeDescription{
+		Code: code,
+	}
+
+	description, exists := partnerTypeDescriptions[code]
+	if exists {
+		result.Description = &description
+	}
+
+	return result
+}
+
+func ageRange(code *string) *company.CodeDescription {
+	if code == nil {
+		return nil
+	}
+
+	result := &company.CodeDescription{
+		Code: *code,
+	}
+
+	description, exists := ageRangeDescriptions[*code]
+	if exists {
+		result.Description = &description
+	}
+
+	return result
+}
