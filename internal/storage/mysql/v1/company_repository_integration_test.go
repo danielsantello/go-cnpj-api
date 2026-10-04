@@ -44,17 +44,25 @@ func TestCompanyRepositoryFindByCNPJIntegration(t *testing.T) {
 	defer cancel()
 
 	var cnpj string
+	var secondaryEconomicActivities string
 
 	err = mysqlDatabase.QueryRowContext(
 		ctx,
 		`
-			SELECT establishment.cnpj
+			SELECT
+				establishment.cnpj,
+				establishment.secondary_economic_activities
 			FROM establishments AS establishment
 			JOIN companies AS company
 				ON company.cnpj_root = establishment.cnpj_root
+			WHERE establishment.secondary_economic_activities IS NOT NULL
+				AND establishment.secondary_economic_activities <> ''
 			LIMIT 1
 		`,
-	).Scan(&cnpj)
+	).Scan(
+		&cnpj,
+		&secondaryEconomicActivities,
+	)
 	if err != nil {
 		t.Fatalf("select integration test CNPJ: %v", err)
 	}
@@ -78,5 +86,74 @@ func TestCompanyRepositoryFindByCNPJIntegration(t *testing.T) {
 
 	if details.Company.CorporateName == "" {
 		t.Fatal("expected corporate name, got empty value")
+	}
+
+	if details.Establishment.CNPJ != cnpj {
+		t.Fatalf(
+			"expected establishment CNPJ %q, got %q",
+			cnpj,
+			details.Establishment.CNPJ,
+		)
+	}
+
+	if details.Establishment.Registration.StatusDate != nil {
+		_, err := time.Parse(
+			time.DateOnly,
+			*details.Establishment.Registration.StatusDate,
+		)
+		if err != nil {
+			t.Fatalf(
+				"expected registration status date in YYYY-MM-DD format, got %q",
+				*details.Establishment.Registration.StatusDate,
+			)
+		}
+	}
+
+	if details.Establishment.ActivityStartDate != nil {
+		_, err := time.Parse(
+			time.DateOnly,
+			*details.Establishment.ActivityStartDate,
+		)
+		if err != nil {
+			t.Fatalf(
+				"expected activity start date in YYYY-MM-DD format, got %q",
+				*details.Establishment.ActivityStartDate,
+			)
+		}
+	}
+
+	if details.Establishment.EconomicActivities.Secondary == nil {
+		t.Fatal("expected secondary economic activities collection, got nil")
+	}
+
+	if len(details.Establishment.EconomicActivities.Secondary) == 0 {
+		t.Fatal("expected secondary economic activities, got empty collection")
+	}
+
+	expectedSecondaryCodes := secondaryEconomicActivityCodes(
+		&secondaryEconomicActivities,
+	)
+
+	if len(details.Establishment.EconomicActivities.Secondary) !=
+		len(expectedSecondaryCodes) {
+		t.Fatalf(
+			"expected %d secondary economic activities, got %d",
+			len(expectedSecondaryCodes),
+			len(details.Establishment.EconomicActivities.Secondary),
+		)
+	}
+
+	for index, expectedCode := range expectedSecondaryCodes {
+		actualCode :=
+			details.Establishment.EconomicActivities.Secondary[index].Code
+
+		if actualCode != expectedCode {
+			t.Fatalf(
+				"expected secondary economic activity code %q at index %d, got %q",
+				expectedCode,
+				index,
+				actualCode,
+			)
+		}
 	}
 }

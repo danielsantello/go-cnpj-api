@@ -8,7 +8,8 @@ import (
 var ErrCompanyNotFound = errors.New("company not found")
 
 type Details struct {
-	Company Company `json:"company"`
+	Company       Company       `json:"company"`
+	Establishment Establishment `json:"establishment"`
 }
 
 type Repository interface {
