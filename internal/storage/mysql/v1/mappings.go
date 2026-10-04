@@ -112,3 +112,22 @@ func secondaryEconomicActivityCodes(value *string) []string {
 
 	return result
 }
+
+func taxOptionIndicator(value *string) *bool {
+	if value == nil {
+		return nil
+	}
+
+	var result bool
+
+	switch *value {
+	case "S":
+		result = true
+	case "N":
+		result = false
+	default:
+		return nil
+	}
+
+	return &result
+}

@@ -318,3 +318,58 @@ func TestSecondaryEconomicActivityCodesSplitsAndPreservesOrder(
 		}
 	}
 }
+
+func TestTaxOptionIndicatorReturnsNilForMissingValue(t *testing.T) {
+	result := taxOptionIndicator(nil)
+
+	if result != nil {
+		t.Fatalf("expected nil indicator, got %t", *result)
+	}
+}
+
+func TestTaxOptionIndicatorMapsKnownValues(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    string
+		expected bool
+	}{
+		{
+			name:     "opted",
+			value:    "S",
+			expected: true,
+		},
+		{
+			name:     "not opted",
+			value:    "N",
+			expected: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := taxOptionIndicator(&test.value)
+
+			if result == nil {
+				t.Fatal("expected indicator, got nil")
+			}
+
+			if *result != test.expected {
+				t.Fatalf(
+					"expected indicator %t, got %t",
+					test.expected,
+					*result,
+				)
+			}
+		})
+	}
+}
+
+func TestTaxOptionIndicatorReturnsNilForUnknownValue(t *testing.T) {
+	value := "X"
+
+	result := taxOptionIndicator(&value)
+
+	if result != nil {
+		t.Fatalf("expected nil indicator, got %t", *result)
+	}
+}

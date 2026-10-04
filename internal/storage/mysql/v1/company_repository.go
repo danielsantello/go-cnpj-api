@@ -321,6 +321,19 @@ func (repository *CompanyRepository) FindByCNPJ(
 	details.Establishment.Contacts.Email =
 		nullableString(emailAddress)
 
+	simpleTax, err := repository.findSimpleTax(
+		ctx,
+		details.Company.BasicCNPJ,
+	)
+	if err != nil {
+		return company.Details{}, fmt.Errorf(
+			"find simple tax: %w",
+			err,
+		)
+	}
+
+	details.SimpleTax = simpleTax
+
 	return details, nil
 }
 

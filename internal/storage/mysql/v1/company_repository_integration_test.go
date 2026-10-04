@@ -55,6 +55,8 @@ func TestCompanyRepositoryFindByCNPJIntegration(t *testing.T) {
 			FROM establishments AS establishment
 			JOIN companies AS company
 				ON company.cnpj_root = establishment.cnpj_root
+			JOIN simple_tax_options AS simple_tax
+				ON simple_tax.cnpj_root = establishment.cnpj_root
 			WHERE establishment.secondary_economic_activities IS NOT NULL
 				AND establishment.secondary_economic_activities <> ''
 			LIMIT 1
@@ -86,6 +88,30 @@ func TestCompanyRepositoryFindByCNPJIntegration(t *testing.T) {
 
 	if details.Company.CorporateName == "" {
 		t.Fatal("expected corporate name, got empty value")
+	}
+
+	if details.SimpleTax == nil {
+		t.Fatal("expected simple tax information, got nil")
+	}
+
+	simpleTaxDates := []*string{
+		details.SimpleTax.OptionDate,
+		details.SimpleTax.ExclusionDate,
+		details.SimpleTax.MEI.OptionDate,
+		details.SimpleTax.MEI.ExclusionDate,
+	}
+
+	for _, date := range simpleTaxDates {
+		if date == nil {
+			continue
+		}
+
+		if _, err := time.Parse(time.DateOnly, *date); err != nil {
+			t.Fatalf(
+				"expected simple tax date in YYYY-MM-DD format, got %q",
+				*date,
+			)
+		}
 	}
 
 	if details.Establishment.CNPJ != cnpj {
