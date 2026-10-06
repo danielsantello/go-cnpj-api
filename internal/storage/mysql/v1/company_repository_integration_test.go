@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/danielsantello/go-cnpj-api/internal/company"
 	"github.com/danielsantello/go-cnpj-api/internal/config"
 	"github.com/danielsantello/go-cnpj-api/internal/database"
 )
@@ -73,7 +74,11 @@ func TestCompanyRepositoryFindByCNPJIntegration(t *testing.T) {
 
 	repository := NewCompanyRepository(mysqlDatabase)
 
-	details, err := repository.FindByCNPJ(ctx, cnpj)
+	details, err := repository.FindByCNPJ(
+		ctx,
+		cnpj,
+		company.FindOptions{},
+	)
 	if err != nil {
 		t.Fatalf("find company by CNPJ: %v", err)
 	}

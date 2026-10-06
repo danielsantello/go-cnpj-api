@@ -13,6 +13,7 @@ type companyFinder interface {
 	FindByCNPJ(
 		ctx context.Context,
 		input string,
+		options company.FindOptions,
 	) (company.Details, error)
 }
 
@@ -22,9 +23,32 @@ type companyResponse struct {
 
 func newCompanyHandler(finder companyFinder) http.HandlerFunc {
 	return func(response http.ResponseWriter, request *http.Request) {
+		query, queryErrorDetails := parseCompanyQuery(
+			request.URL.Query(),
+		)
+		if len(queryErrorDetails) > 0 {
+			writeError(
+				response,
+				request,
+				http.StatusBadRequest,
+				"INVALID_QUERY_PARAMETERS",
+				"One or more query parameters are invalid.",
+				queryErrorDetails,
+			)
+
+			return
+		}
+
+		options := company.FindOptions{
+			IncludeEstablishments: query.IncludeEstablishments,
+			Page:                  query.Page,
+			PageSize:              query.PageSize,
+		}
+
 		details, err := finder.FindByCNPJ(
 			request.Context(),
 			request.PathValue("cnpj"),
+			options,
 		)
 		if errors.Is(err, company.ErrCNPJTooLong) {
 			writeError(

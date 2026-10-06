@@ -7,18 +7,21 @@ import (
 )
 
 type companyRepositoryStub struct {
-	receivedCNPJ string
-	calls        int
-	details      Details
-	err          error
+	receivedCNPJ    string
+	calls           int
+	details         Details
+	receivedOptions FindOptions
+	err             error
 }
 
 func (repository *companyRepositoryStub) FindByCNPJ(
 	_ context.Context,
 	cnpj string,
+	options FindOptions,
 ) (Details, error) {
 	repository.calls++
 	repository.receivedCNPJ = cnpj
+	repository.receivedOptions = options
 
 	return repository.details, repository.err
 }
@@ -37,9 +40,16 @@ func TestServiceFindByCNPJNormalizesInput(t *testing.T) {
 
 	service := NewService(repository)
 
+	expectedOptions := FindOptions{
+		IncludeEstablishments: true,
+		Page:                  3,
+		PageSize:              50,
+	}
+
 	details, err := service.FindByCNPJ(
 		context.Background(),
 		"12.345.678/0001-90",
+		expectedOptions,
 	)
 	if err != nil {
 		t.Fatalf("find company by CNPJ: %v", err)
@@ -52,6 +62,14 @@ func TestServiceFindByCNPJNormalizesInput(t *testing.T) {
 			"expected repository CNPJ %q, got %q",
 			expectedCNPJ,
 			repository.receivedCNPJ,
+		)
+	}
+
+	if repository.receivedOptions != expectedOptions {
+		t.Fatalf(
+			"expected repository options %#v, got %#v",
+			expectedOptions,
+			repository.receivedOptions,
 		)
 	}
 
@@ -74,6 +92,7 @@ func TestServiceFindByCNPJDoesNotQueryRepositoryForLongInput(
 	_, err := service.FindByCNPJ(
 		context.Background(),
 		"123456789012345",
+		FindOptions{},
 	)
 
 	if !errors.Is(err, ErrCNPJTooLong) {
@@ -98,6 +117,7 @@ func TestServiceFindByCNPJPreservesNotFoundError(t *testing.T) {
 	_, err := service.FindByCNPJ(
 		context.Background(),
 		"12345678000190",
+		FindOptions{},
 	)
 
 	if !errors.Is(err, ErrCompanyNotFound) {

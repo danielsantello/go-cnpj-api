@@ -12,16 +12,19 @@ import (
 )
 
 type companyFinderStub struct {
-	receivedInput string
-	details       company.Details
-	err           error
+	receivedInput   string
+	details         company.Details
+	receivedOptions company.FindOptions
+	err             error
 }
 
 func (finder *companyFinderStub) FindByCNPJ(
 	_ context.Context,
 	input string,
+	options company.FindOptions,
 ) (company.Details, error) {
 	finder.receivedInput = input
+	finder.receivedOptions = options
 
 	return finder.details, finder.err
 }
@@ -50,7 +53,7 @@ func TestCompanyHandlerReturnsCompany(t *testing.T) {
 
 	request := httptest.NewRequest(
 		http.MethodGet,
-		"/v1/companies/12.345.678/0001-90",
+		"/v1/companies/12.345.678/0001-90?include=establishments&page=3&page_size=50",
 		nil,
 	)
 	request.SetPathValue(
@@ -86,6 +89,24 @@ func TestCompanyHandlerReturnsCompany(t *testing.T) {
 			"expected finder input %q, got %q",
 			expectedInput,
 			finder.receivedInput,
+		)
+	}
+
+	if !finder.receivedOptions.IncludeEstablishments {
+		t.Fatal("expected establishments to be included")
+	}
+
+	if finder.receivedOptions.Page != 3 {
+		t.Fatalf(
+			"expected page 3, got %d",
+			finder.receivedOptions.Page,
+		)
+	}
+
+	if finder.receivedOptions.PageSize != 50 {
+		t.Fatalf(
+			"expected page size 50, got %d",
+			finder.receivedOptions.PageSize,
 		)
 	}
 
@@ -195,5 +216,68 @@ func TestCompanyHandlerReturnsStandardErrors(t *testing.T) {
 				t.Fatal("expected request ID in error response")
 			}
 		})
+	}
+}
+
+func TestCompanyHandlerReturnsInvalidQueryParameters(t *testing.T) {
+	finder := &companyFinderStub{}
+
+	handler := requestIDMiddleware(
+		newCompanyHandler(finder),
+	)
+
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/companies/12345678000190?include=partners&page=0&page_size=101",
+		nil,
+	)
+	request.SetPathValue(
+		"cnpj",
+		"12345678000190",
+	)
+
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	result := response.Result()
+	defer result.Body.Close()
+
+	if result.StatusCode != http.StatusBadRequest {
+		t.Fatalf(
+			"expected status %d, got %d",
+			http.StatusBadRequest,
+			result.StatusCode,
+		)
+	}
+
+	var payload errorResponse
+
+	if err := json.NewDecoder(result.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode error response: %v", err)
+	}
+
+	expectedCode := "INVALID_QUERY_PARAMETERS"
+
+	if payload.Error.Code != expectedCode {
+		t.Fatalf(
+			"expected error code %q, got %q",
+			expectedCode,
+			payload.Error.Code,
+		)
+	}
+
+	if len(payload.Error.Details) != 3 {
+		t.Fatalf(
+			"expected 3 error details, got %d",
+			len(payload.Error.Details),
+		)
+	}
+
+	if finder.receivedInput != "" {
+		t.Fatalf(
+			"expected finder not to be called, got input %q",
+			finder.receivedInput,
+		)
 	}
 }

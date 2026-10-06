@@ -88,6 +88,7 @@ func NewCompanyRepository(db *sql.DB) *CompanyRepository {
 func (repository *CompanyRepository) FindByCNPJ(
 	ctx context.Context,
 	cnpj string,
+	_ company.FindOptions,
 ) (company.Details, error) {
 	var details company.Details
 	var legalNatureDescription sql.NullString
