@@ -88,7 +88,7 @@ func NewCompanyRepository(db *sql.DB) *CompanyRepository {
 func (repository *CompanyRepository) FindByCNPJ(
 	ctx context.Context,
 	cnpj string,
-	_ company.FindOptions,
+	options company.FindOptions,
 ) (company.Details, error) {
 	var details company.Details
 	var legalNatureDescription sql.NullString
@@ -96,43 +96,9 @@ func (repository *CompanyRepository) FindByCNPJ(
 	var shareCapital sql.NullString
 	var companySizeCode sql.NullString
 	var responsibleFederativeEntity sql.NullString
-	var establishmentTypeCode string
-	var tradeName sql.NullString
-	var registrationStatusCode sql.NullString
-	var registrationStatusDate sql.NullTime
-	var registrationStatusReasonCode sql.NullString
-	var registrationStatusReasonDescription sql.NullString
-	var specialStatus sql.NullString
-	var specialStatusDate sql.NullTime
-	var activityStartDate sql.NullTime
-	var mainEconomicActivityCode sql.NullString
-	var mainEconomicActivityDescription sql.NullString
-	var secondaryEconomicActivities sql.NullString
-	var streetType sql.NullString
-	var streetName sql.NullString
-	var streetNumber sql.NullString
-	var addressComplement sql.NullString
-	var neighborhood sql.NullString
-	var postalCode sql.NullString
-	var stateCode sql.NullString
-	var municipalityCode sql.NullString
-	var municipalityDescription sql.NullString
-	var countryCode sql.NullString
-	var countryDescription sql.NullString
-	var foreignCityName sql.NullString
-	var phoneAreaCode1 sql.NullString
-	var phoneNumber1 sql.NullString
-	var phoneAreaCode2 sql.NullString
-	var phoneNumber2 sql.NullString
-	var faxAreaCode sql.NullString
-	var faxNumber sql.NullString
-	var emailAddress sql.NullString
+	var establishment establishmentRow
 
-	err := repository.db.QueryRowContext(
-		ctx,
-		findCompanyByCNPJQuery,
-		cnpj,
-	).Scan(
+	destinations := []any{
 		&details.Company.BasicCNPJ,
 		&details.Company.CorporateName,
 		&details.Company.LegalNature.Code,
@@ -142,39 +108,18 @@ func (repository *CompanyRepository) FindByCNPJ(
 		&shareCapital,
 		&companySizeCode,
 		&responsibleFederativeEntity,
-		&details.Establishment.CNPJ,
-		&establishmentTypeCode,
-		&tradeName,
-		&registrationStatusCode,
-		&registrationStatusDate,
-		&registrationStatusReasonCode,
-		&registrationStatusReasonDescription,
-		&specialStatus,
-		&specialStatusDate,
-		&activityStartDate,
-		&mainEconomicActivityCode,
-		&mainEconomicActivityDescription,
-		&secondaryEconomicActivities,
-		&streetType,
-		&streetName,
-		&streetNumber,
-		&addressComplement,
-		&neighborhood,
-		&postalCode,
-		&stateCode,
-		&municipalityCode,
-		&municipalityDescription,
-		&countryCode,
-		&countryDescription,
-		&foreignCityName,
-		&phoneAreaCode1,
-		&phoneNumber1,
-		&phoneAreaCode2,
-		&phoneNumber2,
-		&faxAreaCode,
-		&faxNumber,
-		&emailAddress,
+	}
+
+	destinations = append(
+		destinations,
+		establishment.destinations()...,
 	)
+
+	err := repository.db.QueryRowContext(
+		ctx,
+		findCompanyByCNPJQuery,
+		cnpj,
+	).Scan(destinations...)
 	if errors.Is(err, sql.ErrNoRows) {
 		return company.Details{}, company.ErrCompanyNotFound
 	}
@@ -200,47 +145,12 @@ func (repository *CompanyRepository) FindByCNPJ(
 	details.Company.ResponsibleFederativeEntity =
 		nullableString(responsibleFederativeEntity)
 
-	details.Establishment.Type =
-		establishmentType(establishmentTypeCode)
-
-	details.Establishment.TradeName =
-		nullableString(tradeName)
-
-	details.Establishment.Registration.Status =
-		registrationStatus(nullableString(registrationStatusCode))
-
-	details.Establishment.Registration.StatusDate =
-		nullableDate(registrationStatusDate)
-
-	details.Establishment.Registration.StatusReason =
-		codeDescription(
-			nullableString(registrationStatusReasonCode),
-			nullableString(registrationStatusReasonDescription),
-		)
-
-	details.Establishment.Registration.SpecialStatus =
-		nullableString(specialStatus)
-
-	details.Establishment.Registration.SpecialStatusDate =
-		nullableDate(specialStatusDate)
-
-	details.Establishment.ActivityStartDate =
-		nullableDate(activityStartDate)
-
-	details.Establishment.EconomicActivities.Primary =
-		codeDescription(
-			nullableString(mainEconomicActivityCode),
-			nullableString(mainEconomicActivityDescription),
-		)
-
-	secondaryCodes := secondaryEconomicActivityCodes(
-		nullableString(secondaryEconomicActivities),
-	)
+	details.Establishment = establishment.establishment()
 
 	secondaryActivities, err :=
 		repository.findSecondaryEconomicActivities(
 			ctx,
-			secondaryCodes,
+			establishment.secondaryCodes(),
 		)
 	if err != nil {
 		return company.Details{}, fmt.Errorf(
@@ -251,76 +161,6 @@ func (repository *CompanyRepository) FindByCNPJ(
 
 	details.Establishment.EconomicActivities.Secondary =
 		secondaryActivities
-
-	details.Establishment.Address.StreetType =
-		nullableString(streetType)
-
-	details.Establishment.Address.Street =
-		nullableString(streetName)
-
-	details.Establishment.Address.Number =
-		nullableString(streetNumber)
-
-	details.Establishment.Address.Complement =
-		nullableString(addressComplement)
-
-	details.Establishment.Address.Neighborhood =
-		nullableString(neighborhood)
-
-	details.Establishment.Address.PostalCode =
-		nullableString(postalCode)
-
-	details.Establishment.Address.State =
-		nullableString(stateCode)
-
-	details.Establishment.Address.Municipality =
-		codeDescription(
-			nullableString(municipalityCode),
-			nullableString(municipalityDescription),
-		)
-
-	details.Establishment.Address.Country =
-		codeDescription(
-			nullableString(countryCode),
-			nullableString(countryDescription),
-		)
-
-	details.Establishment.Address.ForeignCityName =
-		nullableString(foreignCityName)
-
-	details.Establishment.Contacts.Phones =
-		make([]company.Phone, 0, 2)
-
-	firstPhone := phone(
-		nullableString(phoneAreaCode1),
-		nullableString(phoneNumber1),
-	)
-	if firstPhone != nil {
-		details.Establishment.Contacts.Phones = append(
-			details.Establishment.Contacts.Phones,
-			*firstPhone,
-		)
-	}
-
-	secondPhone := phone(
-		nullableString(phoneAreaCode2),
-		nullableString(phoneNumber2),
-	)
-	if secondPhone != nil {
-		details.Establishment.Contacts.Phones = append(
-			details.Establishment.Contacts.Phones,
-			*secondPhone,
-		)
-	}
-
-	details.Establishment.Contacts.Fax =
-		phone(
-			nullableString(faxAreaCode),
-			nullableString(faxNumber),
-		)
-
-	details.Establishment.Contacts.Email =
-		nullableString(emailAddress)
 
 	simpleTax, err := repository.findSimpleTax(
 		ctx,
@@ -347,6 +187,23 @@ func (repository *CompanyRepository) FindByCNPJ(
 	}
 
 	details.Partners = partners
+
+	if options.IncludeEstablishments {
+		establishments, err := repository.findEstablishments(
+			ctx,
+			details.Company.BasicCNPJ,
+			options.Page,
+			options.PageSize,
+		)
+		if err != nil {
+			return company.Details{}, fmt.Errorf(
+				"find establishments: %w",
+				err,
+			)
+		}
+
+		details.Establishments = &establishments
+	}
 
 	return details, nil
 }

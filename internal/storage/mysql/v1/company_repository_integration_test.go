@@ -97,6 +97,13 @@ func TestCompanyRepositoryFindByCNPJIntegration(t *testing.T) {
 		t.Fatal("expected corporate name, got empty value")
 	}
 
+	if details.Establishments != nil {
+		t.Fatalf(
+			"expected establishments to be omitted without include option, got %#v",
+			details.Establishments,
+		)
+	}
+
 	if details.SimpleTax == nil {
 		t.Fatal("expected simple tax information, got nil")
 	}
@@ -223,6 +230,82 @@ func TestCompanyRepositoryFindByCNPJIntegration(t *testing.T) {
 				expectedCode,
 				index,
 				actualCode,
+			)
+		}
+	}
+
+	detailsWithEstablishments, err := repository.FindByCNPJ(
+		ctx,
+		cnpj,
+		company.FindOptions{
+			IncludeEstablishments: true,
+			Page:                  1,
+			PageSize:              2,
+		},
+	)
+	if err != nil {
+		t.Fatalf(
+			"find company with establishments: %v",
+			err,
+		)
+	}
+
+	if detailsWithEstablishments.Establishments == nil {
+		t.Fatal("expected establishments, got nil")
+	}
+
+	establishments := detailsWithEstablishments.Establishments
+
+	if establishments.Pagination.Page != 1 {
+		t.Fatalf(
+			"expected establishments page 1, got %d",
+			establishments.Pagination.Page,
+		)
+	}
+
+	if establishments.Pagination.PageSize != 2 {
+		t.Fatalf(
+			"expected establishments page size 2, got %d",
+			establishments.Pagination.PageSize,
+		)
+	}
+
+	if establishments.Pagination.TotalItems < 1 {
+		t.Fatalf(
+			"expected at least one establishment, got %d",
+			establishments.Pagination.TotalItems,
+		)
+	}
+
+	expectedTotalPages :=
+		(establishments.Pagination.TotalItems + 1) / 2
+
+	if establishments.Pagination.TotalPages != expectedTotalPages {
+		t.Fatalf(
+			"expected %d total pages, got %d",
+			expectedTotalPages,
+			establishments.Pagination.TotalPages,
+		)
+	}
+
+	if len(establishments.Items) == 0 {
+		t.Fatal("expected establishments items, got empty collection")
+	}
+
+	if len(establishments.Items) > 2 {
+		t.Fatalf(
+			"expected at most 2 establishments, got %d",
+			len(establishments.Items),
+		)
+	}
+
+	for index, establishment := range establishments.Items {
+		if establishment.CNPJ[:8] != expectedBasicCNPJ {
+			t.Fatalf(
+				"expected establishment CNPJ root %q at index %d, got %q",
+				expectedBasicCNPJ,
+				index,
+				establishment.CNPJ[:8],
 			)
 		}
 	}
