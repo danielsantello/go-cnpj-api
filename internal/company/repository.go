@@ -26,4 +26,9 @@ type Repository interface {
 		ctx context.Context,
 		options SearchOptions,
 	) (SearchResult, error)
+
+	SearchByTradeName(
+		ctx context.Context,
+		options SearchOptions,
+	) (EstablishmentSearchResult, error)
 }

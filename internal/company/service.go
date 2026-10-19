@@ -68,3 +68,33 @@ func (service *Service) SearchByCorporateName(
 
 	return result, nil
 }
+
+func (service *Service) SearchByTradeName(
+	ctx context.Context,
+	options SearchOptions,
+) (EstablishmentSearchResult, error) {
+	options.Name = strings.TrimSpace(options.Name)
+
+	nameLength := utf8.RuneCountInString(options.Name)
+
+	if nameLength < minTradeNameSearchLength {
+		return EstablishmentSearchResult{}, ErrTradeNameTooShort
+	}
+
+	if nameLength > maxTradeNameSearchLength {
+		return EstablishmentSearchResult{}, ErrTradeNameTooLong
+	}
+
+	result, err := service.repository.SearchByTradeName(
+		ctx,
+		options,
+	)
+	if err != nil {
+		return EstablishmentSearchResult{}, fmt.Errorf(
+			"search establishments by trade name: %w",
+			err,
+		)
+	}
+
+	return result, nil
+}

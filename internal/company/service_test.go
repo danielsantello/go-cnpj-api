@@ -8,15 +8,19 @@ import (
 )
 
 type companyRepositoryStub struct {
-	receivedCNPJ          string
-	calls                 int
-	details               Details
-	receivedOptions       FindOptions
-	err                   error
-	receivedSearchOptions SearchOptions
-	searchCalls           int
-	searchResult          SearchResult
-	searchErr             error
+	receivedCNPJ                   string
+	calls                          int
+	details                        Details
+	receivedOptions                FindOptions
+	err                            error
+	receivedSearchOptions          SearchOptions
+	searchCalls                    int
+	searchResult                   SearchResult
+	searchErr                      error
+	receivedTradeNameSearchOptions SearchOptions
+	tradeNameSearchCalls           int
+	tradeNameSearchResult          EstablishmentSearchResult
+	tradeNameSearchErr             error
 }
 
 func (repository *companyRepositoryStub) FindByCNPJ(
@@ -39,6 +43,16 @@ func (repository *companyRepositoryStub) SearchByCorporateName(
 	repository.receivedSearchOptions = options
 
 	return repository.searchResult, repository.searchErr
+}
+
+func (repository *companyRepositoryStub) SearchByTradeName(
+	_ context.Context,
+	options SearchOptions,
+) (EstablishmentSearchResult, error) {
+	repository.tradeNameSearchCalls++
+	repository.receivedTradeNameSearchOptions = options
+
+	return repository.tradeNameSearchResult, repository.tradeNameSearchErr
 }
 
 func TestServiceFindByCNPJNormalizesInput(t *testing.T) {
