@@ -5,11 +5,16 @@ import (
 	"time"
 )
 
+type companyService interface {
+	companyFinder
+	companySearcher
+}
+
 func NewServer(
 	address string,
 	mysql MySQLPinger,
 	healthCheckTimeout time.Duration,
-	companyService companyFinder,
+	companies companyService,
 ) *http.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc(
@@ -18,8 +23,13 @@ func NewServer(
 	)
 
 	mux.HandleFunc(
+		"GET /v1/companies",
+		newCompanySearchHandler(companies),
+	)
+
+	mux.HandleFunc(
 		"GET /v1/companies/{cnpj...}",
-		newCompanyHandler(companyService),
+		newCompanyHandler(companies),
 	)
 
 	return &http.Server{

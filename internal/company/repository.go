@@ -21,4 +21,9 @@ type Repository interface {
 		cnpj string,
 		options FindOptions,
 	) (Details, error)
+
+	SearchByCorporateName(
+		ctx context.Context,
+		options SearchOptions,
+	) (SearchResult, error)
 }

@@ -5,7 +5,7 @@ import "testing"
 func TestRequiredIndexesAreValid(t *testing.T) {
 	indexes := RequiredIndexes()
 
-	expectedCount := 11
+	expectedCount := 12
 
 	if len(indexes) != expectedCount {
 		t.Fatalf(
