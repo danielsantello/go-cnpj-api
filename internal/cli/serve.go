@@ -13,6 +13,8 @@ import (
 	"github.com/danielsantello/go-cnpj-api/internal/company"
 	"github.com/danielsantello/go-cnpj-api/internal/config"
 	"github.com/danielsantello/go-cnpj-api/internal/httpapi"
+	"github.com/danielsantello/go-cnpj-api/internal/search"
+	manticorestorage "github.com/danielsantello/go-cnpj-api/internal/storage/manticore"
 	mysqlstorage "github.com/danielsantello/go-cnpj-api/internal/storage/mysql"
 )
 
@@ -53,6 +55,13 @@ func serve() error {
 		searchPinger = manticore
 	}
 
+	var searchRepository search.Repository
+	if manticore != nil {
+		searchRepository = manticorestorage.NewRepository(manticore)
+	}
+
+	broadSearchService := search.NewService(searchRepository)
+
 	server := httpapi.NewServer(
 		configuration.HTTPAddress,
 		mysqlDatabase,
@@ -60,6 +69,7 @@ func serve() error {
 		companyService,
 		searchPinger,
 		configuration.ManticoreConnectTimeout,
+		broadSearchService,
 	)
 
 	// signalContext is canceled when the process receives SIGINT or SIGTERM.

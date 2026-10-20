@@ -19,6 +19,7 @@ func NewServer(
 	companies companyService,
 	search MySQLPinger,
 	searchHealthCheckTimeout time.Duration,
+	broadSearch broadSearcher,
 ) *http.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc(
@@ -49,6 +50,11 @@ func NewServer(
 	mux.HandleFunc(
 		"GET /v1/partners",
 		newPartnerSearchHandler(companies),
+	)
+
+	mux.HandleFunc(
+		"GET /v1/search",
+		newBroadSearchHandler(broadSearch),
 	)
 
 	return &http.Server{

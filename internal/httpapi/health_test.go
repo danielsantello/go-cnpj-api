@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/danielsantello/go-cnpj-api/internal/search"
 )
 
 type mysqlPingerStub struct {
@@ -21,7 +23,7 @@ func (stub mysqlPingerStub) PingContext(_ context.Context) error {
 func TestHealthReturnsHealthyWhenMySQLIsAvailable(t *testing.T) {
 	mysql := mysqlPingerStub{}
 
-	server := NewServer(":0", mysql, time.Second, nil, nil, time.Second)
+	server := NewServer(":0", mysql, time.Second, nil, nil, time.Second, search.NewService(nil))
 
 	request := httptest.NewRequest(http.MethodGet, "/health", nil)
 	response := httptest.NewRecorder()
@@ -69,7 +71,7 @@ func TestHealthReturnsUnhealthyWhenMySQLIsUnavailable(t *testing.T) {
 		err: errors.New("MySQL unavailable"),
 	}
 
-	server := NewServer(":0", mysql, time.Second, nil, nil, time.Second)
+	server := NewServer(":0", mysql, time.Second, nil, nil, time.Second, search.NewService(nil))
 
 	request := httptest.NewRequest(http.MethodGet, "/health", nil)
 	response := httptest.NewRecorder()
@@ -144,6 +146,7 @@ func TestHealthChecksEnabledSearch(t *testing.T) {
 				nil,
 				mysqlPingerStub{err: test.searchError},
 				time.Second,
+				search.NewService(nil),
 			)
 
 			response := httptest.NewRecorder()

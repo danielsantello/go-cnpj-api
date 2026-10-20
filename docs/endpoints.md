@@ -224,3 +224,49 @@ demais buscas. Sem resultados, retorna HTTP 200 com `items: []`.
 
 Parâmetros inválidos retornam HTTP 400 com código
 `INVALID_QUERY_PARAMETERS`.
+
+## Busca ampla — Manticore
+
+`GET /v1/search`
+
+Busca termos na razão social, nos nomes fantasia e nos nomes dos sócios.
+Requer Manticore habilitado e dados indexados.
+
+```bash
+curl -sS --get 'http://localhost:8080/v1/search' \
+  --data-urlencode 'name=banco brasil' \
+  --data-urlencode 'page=1' \
+  --data-urlencode 'page_size=5'
+```
+
+| Parâmetro | Obrigatório | Descrição |
+|---|---|---|
+| `name` | Sim | Texto entre 3 e 255 caracteres |
+| `page` | Não | Página solicitada; padrão: 1 |
+| `page_size` | Não | Itens por página, de 1 a 100; padrão: 20 |
+
+Todos os termos são obrigatórios, em qualquer ordem. Eles podem aparecer
+em campos diferentes do mesmo documento de empresa.
+
+A busca considera palavras em qualquer posição dos campos, com
+normalização de maiúsculas, minúsculas e acentos. Não é uma busca
+por qualquer trecho dentro de uma palavra.
+
+Pontuação é tratada como separador; operadores de consulta do Manticore
+não são expostos. Texto composto somente por pontuação retorna lista vazia.
+
+Cada empresa aparece uma vez, com `basic_cnpj`, `cnpj` e `corporate_name`.
+Os resultados ficam em `data.companies.items`, ordenados pelo identificador
+derivado do CNPJ básico, com paginação em `data.companies.pagination`.
+
+Sem resultados, retorna HTTP 200 com `items: []`.
+Com Manticore desabilitado, retorna HTTP 503 com código `SEARCH_DISABLED`.
+
+### Estado atual
+
+Validado com uma amostra de mil empresas. A busca cobre somente os
+documentos já indexados.
+
+Antes do uso com a base completa, ainda serão tratados os limites de
+paginação e contagem para grandes resultados, a substituição da publicação
+indexada e a indicação dos campos que corresponderam à busca.

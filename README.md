@@ -118,6 +118,7 @@ para os tempos por tabela e as condições de medição.
 | GET | `/v1/companies?name=SANTELLO` | Buscar por início da razão social |
 | GET | `/v1/establishments?name=SANTELLO` | Buscar por início do nome fantasia |
 | GET | `/v1/partners?name=SANTELLO` | Buscar sócios e empresas vinculadas |
+| GET | `/v1/search?name=SANTELLO` | Buscar termos na razão social, nomes fantasia e sócios; requer Manticore |
 
 Exemplo de busca:
 
@@ -142,7 +143,9 @@ go test ./...
 ## Manticore Search — opcional
 
 A API permite habilitar a conexão com o Manticore Search.
-A busca ampla e a carga do índice ainda estão em implementação.
+A busca ampla está disponível em `/v1/search`, sobre os documentos
+já indexados. A carga completa e a troca de publicação ainda estão
+em implementação.
 
 Ambiente validado com Manticore Search 29.9.0 em Docker.
 
@@ -188,8 +191,7 @@ de uma empresa. O MySQL é utilizado somente para leitura.
 Repetir a carga atualiza os documentos com os mesmos identificadores,
 sem duplicá-los. O comando não remove documentos de publicações anteriores.
 
-Nesta etapa, o índice é parcial. A busca HTTP e o procedimento de
-substituição completa da base ainda estão em implementação.
+Nesta etapa, o índice é parcial. A busca HTTP está disponível sobre essa amostra. O procedimento de substituição completa da base ainda está em implementação.
 
 Na amostra de 20/10/2026, com Manticore 29.9.0 e MySQL 8.4.11,
 mil empresas foram processadas em 1,053s; a execução completa com
