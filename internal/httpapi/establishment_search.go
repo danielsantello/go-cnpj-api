@@ -91,6 +91,17 @@ func newEstablishmentSearchHandler(
 
 			return
 		}
+		if errors.Is(err, company.ErrSearchTooBroad) {
+			writeError(
+				response,
+				request,
+				http.StatusUnprocessableEntity,
+				"SEARCH_TOO_BROAD",
+				"Too many results were found. Refine your search.",
+				nil,
+			)
+			return
+		}
 		if err != nil {
 			slog.Error(
 				"failed to search establishments by trade name",

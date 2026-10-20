@@ -155,6 +155,7 @@ func TestPartnerSearchHandlerMapsErrors(t *testing.T) {
 		{"short name", company.ErrPartnerNameTooShort, 400, "INVALID_QUERY_PARAMETERS", "name"},
 		{"long name", company.ErrPartnerNameTooLong, 400, "INVALID_QUERY_PARAMETERS", "name"},
 		{"document", company.ErrPartnerDocumentInvalid, 400, "INVALID_QUERY_PARAMETERS", "document"},
+		{"too broad", company.ErrSearchTooBroad, 422, "SEARCH_TOO_BROAD", ""},
 		{"internal", errors.New("database unavailable"), 500, "INTERNAL_ERROR", ""},
 	}
 

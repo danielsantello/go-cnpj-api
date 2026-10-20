@@ -9,10 +9,14 @@ import (
 
 const countEstablishmentsByTradeNameQuery = `
 	SELECT COUNT(*)
-	FROM establishments AS establishment
-	INNER JOIN companies AS company
-		ON company.cnpj_root = establishment.cnpj_root
-	WHERE establishment.trade_name LIKE ? ESCAPE '!'
+	FROM (
+		SELECT 1
+		FROM establishments AS establishment
+		INNER JOIN companies AS company
+			ON company.cnpj_root = establishment.cnpj_root
+		WHERE establishment.trade_name LIKE ? ESCAPE '!'
+		LIMIT 1001
+	) AS matches
 `
 
 const searchEstablishmentsByTradeNameQuery = `
@@ -49,6 +53,10 @@ func (repository *CompanyRepository) SearchByTradeName(
 			"count establishments by trade name: %w",
 			err,
 		)
+	}
+
+	if totalItems > company.MaximumSearchResults {
+		return company.EstablishmentSearchResult{}, company.ErrSearchTooBroad
 	}
 
 	offset := int64(options.Page-1) * int64(options.PageSize)

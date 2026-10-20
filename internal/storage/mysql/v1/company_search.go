@@ -10,13 +10,17 @@ import (
 
 const countCompaniesByCorporateNameQuery = `
 	SELECT COUNT(*)
-	FROM companies AS company
-	WHERE company.legal_name LIKE ? ESCAPE '!'
-		AND EXISTS (
-			SELECT 1
-			FROM establishments AS establishment
-			WHERE establishment.cnpj_root = company.cnpj_root
-		)
+	FROM (
+		SELECT 1
+		FROM companies AS company
+		WHERE company.legal_name LIKE ? ESCAPE '!'
+			AND EXISTS (
+				SELECT 1
+				FROM establishments AS establishment
+				WHERE establishment.cnpj_root = company.cnpj_root
+			)
+		LIMIT 1001
+	) AS matches
 `
 
 const searchCompaniesByCorporateNameQuery = `
@@ -63,6 +67,10 @@ func (repository *CompanyRepository) SearchByCorporateName(
 			"count companies by corporate name: %w",
 			err,
 		)
+	}
+
+	if totalItems > company.MaximumSearchResults {
+		return company.SearchResult{}, company.ErrSearchTooBroad
 	}
 
 	offset := int64(options.Page-1) * int64(options.PageSize)

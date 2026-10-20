@@ -278,3 +278,19 @@ A busca permite até 1000 empresas por consulta, com paginação.
 
 Acima desse limite, retorna HTTP 422 com código `SEARCH_TOO_BROAD`,
 sem itens nem paginação. Refine a busca acrescentando termos.
+
+## Limite comum às buscas por nome
+
+As buscas por razão social, nome fantasia, sócio e a busca ampla
+permitem até 1000 resultados por consulta.
+
+Até esse limite, retornam itens e paginação normalmente.
+Acima dele, retornam HTTP 422 com código `SEARCH_TOO_BROAD`,
+sem itens nem paginação. Refine o nome ou acrescente termos
+na busca ampla.
+
+Na busca por sócio, o limite também se aplica quando o documento
+é informado.
+
+Essa regra não altera a consulta direta por CNPJ nem a listagem
+de estabelecimentos incluída nos detalhes de uma empresa.

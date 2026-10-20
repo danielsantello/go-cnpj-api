@@ -91,6 +91,17 @@ func newCompanySearchHandler(
 
 			return
 		}
+		if errors.Is(err, company.ErrSearchTooBroad) {
+			writeError(
+				response,
+				request,
+				http.StatusUnprocessableEntity,
+				"SEARCH_TOO_BROAD",
+				"Too many results were found. Refine your search.",
+				nil,
+			)
+			return
+		}
 		if err != nil {
 			requestID := requestIDFromContext(request.Context())
 

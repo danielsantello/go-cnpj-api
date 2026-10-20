@@ -112,6 +112,12 @@ func TestEstablishmentSearchHandlerReturnsStandardErrors(t *testing.T) {
 			expectedCode:   "INVALID_QUERY_PARAMETERS",
 		},
 		{
+			name:           "search too broad",
+			searchError:    company.ErrSearchTooBroad,
+			expectedStatus: http.StatusUnprocessableEntity,
+			expectedCode:   "SEARCH_TOO_BROAD",
+		},
+		{
 			name:           "unexpected error",
 			searchError:    errors.New("database failure"),
 			expectedStatus: http.StatusInternalServerError,
