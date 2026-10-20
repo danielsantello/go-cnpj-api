@@ -287,3 +287,23 @@ restaure o valor anterior da variável e reinicie a API.
 
 A troca não copia nem remove documentos. A tabela ativa do Manticore
 e a base MySQL devem corresponder à mesma publicação.
+
+### Remoção de uma tabela antiga
+
+Após trocar a tabela ativa e validar as consultas, remova uma tabela
+que não será mais utilizada:
+
+```bash
+go run ./cmd/cnpj-api search drop \
+  --table=cnpj_companies_2026_07
+```
+
+A exclusão é permanente. O comando valida o nome, verifica a existência
+e recusa remover a tabela definida em `CNPJ_API_MANTICORE_TABLE`.
+
+Carregue o mesmo `.env` usado pelo servidor antes de executar.
+A proteção considera a configuração do comando; não detecta outra
+instância da API com configuração diferente nem uma carga em andamento.
+
+Não remova uma tabela enquanto ela estiver recebendo dados.
+Mantenha a publicação anterior até concluir a validação da nova.

@@ -11,3 +11,5 @@ bin/
 coverage.out
 *.test
 *.prof
+
+/tmp/

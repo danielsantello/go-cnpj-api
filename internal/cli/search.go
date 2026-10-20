@@ -22,7 +22,12 @@ func runSearch(args []string) error {
 		return fmt.Errorf("search command is required")
 	}
 	if args[0] != "index" {
-		return fmt.Errorf("unknown search command: %s", args[0])
+		if args[0] == "drop" {
+			return runSearchDrop(args[1:])
+		}
+		if args[0] != "index" {
+			return fmt.Errorf("unknown search command: %s", args[0])
+		}
 	}
 
 	flags := flag.NewFlagSet("search index", flag.ContinueOnError)
