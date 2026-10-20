@@ -6,8 +6,10 @@ import (
 )
 
 type IndexOptions struct {
-	BatchSize int
-	Limit     int
+	BatchSize      int
+	Limit          int
+	All            bool
+	AfterBasicCNPJ string
 }
 
 type IndexProgress struct {
@@ -22,12 +24,18 @@ func BuildIndex(
 	options IndexOptions,
 	progress func(IndexProgress),
 ) (IndexProgress, error) {
-	var result IndexProgress
+	result := IndexProgress{
+		LastBasicCNPJ: options.AfterBasicCNPJ,
+	}
 
 	if options.BatchSize <= 0 {
 		return result, fmt.Errorf("batch size must be greater than zero")
 	}
-	if options.Limit <= 0 {
+	if options.All {
+		if options.Limit != 0 {
+			return result, fmt.Errorf("full indexing must not specify a limit")
+		}
+	} else if options.Limit <= 0 {
 		return result, fmt.Errorf("indexing limit must be greater than zero")
 	}
 
@@ -35,14 +43,16 @@ func BuildIndex(
 		return result, fmt.Errorf("ensure search table: %w", err)
 	}
 
-	for result.Processed < options.Limit {
+	for options.All || result.Processed < options.Limit {
 		if err := ctx.Err(); err != nil {
 			return result, err
 		}
 
 		batchSize := options.BatchSize
-		if remaining := options.Limit - result.Processed; remaining < batchSize {
-			batchSize = remaining
+		if !options.All {
+			if remaining := options.Limit - result.Processed; remaining < batchSize {
+				batchSize = remaining
+			}
 		}
 
 		documents, err := source.ReadBatch(

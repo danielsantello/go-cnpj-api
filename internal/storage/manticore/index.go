@@ -4,13 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/danielsantello/go-cnpj-api/internal/search"
 )
 
 const createTableQuery = `
-	CREATE TABLE IF NOT EXISTS cnpj_companies (
+	CREATE TABLE IF NOT EXISTS %s (
 		basic_cnpj string,
 		cnpj string,
 		corporate_name text,
@@ -20,15 +21,30 @@ const createTableQuery = `
 `
 
 type Index struct {
-	db *sql.DB
+	db    *sql.DB
+	table string
 }
 
 func NewIndex(db *sql.DB) *Index {
-	return &Index{db: db}
+	return &Index{db: db, table: "cnpj_companies"}
+}
+
+var indexTableNamePattern = regexp.MustCompile(
+	`^cnpj_companies_[a-z0-9_]{1,48}$`,
+)
+
+func NewIndexForTable(db *sql.DB, table string) (*Index, error) {
+	if !indexTableNamePattern.MatchString(table) {
+		return nil, fmt.Errorf(
+			"invalid index table name: use cnpj_companies_ followed by 1 to 48 lowercase letters, digits or underscores",
+		)
+	}
+
+	return &Index{db: db, table: table}, nil
 }
 
 func (index *Index) EnsureTable(ctx context.Context) error {
-	if _, err := index.db.ExecContext(ctx, createTableQuery); err != nil {
+	if _, err := index.db.ExecContext(ctx, fmt.Sprintf(createTableQuery, index.table)); err != nil {
 		return fmt.Errorf("create Manticore search table: %w", err)
 	}
 	return nil
@@ -62,7 +78,7 @@ func (index *Index) WriteBatch(
 	}
 
 	query := `
-		REPLACE INTO cnpj_companies (
+		REPLACE INTO ` + index.table + ` (
 			id,
 			basic_cnpj,
 			cnpj,

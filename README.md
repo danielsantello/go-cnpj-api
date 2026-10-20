@@ -199,3 +199,61 @@ mil empresas foram processadas em 1,053s; a execução completa com
 
 Esses tempos representam somente a amostra e não estimam a duração
 da carga completa.
+
+### Carga em uma tabela separada
+
+Use `--table` para escolher o destino sem alterar a tabela consultada
+pela API:
+
+```bash
+go run ./cmd/cnpj-api search index \
+  --table=cnpj_companies_2026_08_test \
+  --limit=1000 \
+  --batch-size=100
+```
+
+O nome deve começar com `cnpj_companies_`, seguido de 1 a 48 caracteres:
+letras minúsculas, números ou sublinhados.
+
+### Carga completa
+
+Use `--all` com uma tabela de destino explícita:
+
+```bash
+go run ./cmd/cnpj-api search index \
+  --table=cnpj_companies_2026_08 \
+  --all \
+  --batch-size=100
+```
+
+`--all` e `--limit` não podem ser usados juntos. A carga completa lê
+a base até o fim, em lotes.
+
+Para uma nova publicação, utilize uma tabela nova. Reutilizar uma tabela
+atualiza os documentos existentes, mas não remove empresas ausentes
+da nova base.
+
+Criar e carregar a tabela não a ativa para consultas. A API continua
+consultando `cnpj_companies`; a troca da tabela ativa ainda será implementada.
+
+### Retomada de carga
+
+Se uma execução for interrompida, utilize o último `last_basic_cnpj`
+registrado em uma mensagem de progresso concluído:
+
+```bash
+go run ./cmd/cnpj-api search index \
+  --table=cnpj_companies_2026_08 \
+  --all \
+  --after=00001132 \
+  --batch-size=100
+```
+
+O cursor acima é ilustrativo. Use o valor da sua execução, mantendo
+a mesma tabela de destino e a mesma base MySQL.
+
+A opção `--after` exige um CNPJ básico com oito dígitos e uma tabela
+de destino explícita. Ela não verifica se todos os documentos anteriores
+ao cursor estão presentes: não deve ser usada para iniciar uma tabela vazia.
+
+O contador `processed` considera apenas os documentos da execução atual.

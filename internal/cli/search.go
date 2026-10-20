@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"regexp"
 	"syscall"
 	"time"
 
@@ -27,6 +28,9 @@ func runSearch(args []string) error {
 	flags := flag.NewFlagSet("search index", flag.ContinueOnError)
 	limit := flags.Int("limit", 1000, "maximum number of companies to index")
 	batchSize := flags.Int("batch-size", 100, "companies per batch")
+	all := flags.Bool("all", false, "index all companies")
+	table := flags.String("table", "", "destination table, such as cnpj_companies_2026_08")
+	after := flags.String("after", "", "resume after this 8-digit basic CNPJ")
 
 	if err := flags.Parse(args[1:]); err != nil {
 		return err
@@ -34,11 +38,35 @@ func runSearch(args []string) error {
 	if flags.NArg() != 0 {
 		return fmt.Errorf("search index does not accept positional arguments")
 	}
-	if *limit <= 0 {
+	limitProvided := false
+	flags.Visit(func(option *flag.Flag) {
+		if option.Name == "limit" {
+			limitProvided = true
+		}
+	})
+
+	if *all {
+		if limitProvided {
+			return fmt.Errorf("all and limit must not be used together")
+		}
+		if *table == "" {
+			return fmt.Errorf("full indexing requires an explicit destination table")
+		}
+		*limit = 0
+	} else if *limit <= 0 {
 		return fmt.Errorf("limit must be greater than zero")
 	}
 	if *batchSize <= 0 || *batchSize > 1000 {
 		return fmt.Errorf("batch-size must be between 1 and 1000")
+	}
+
+	if *after != "" {
+		if !regexp.MustCompile(`^[0-9]{8}$`).MatchString(*after) {
+			return fmt.Errorf("after must contain exactly 8 digits")
+		}
+		if *table == "" {
+			return fmt.Errorf("resuming requires an explicit destination table")
+		}
 	}
 
 	configuration, err := config.Load()
@@ -68,6 +96,14 @@ func runSearch(args []string) error {
 	}
 	defer closeManticore(manticore)
 
+	destination := manticorestorage.NewIndex(manticore)
+	if *table != "" {
+		destination, err = manticorestorage.NewIndexForTable(manticore, *table)
+		if err != nil {
+			return err
+		}
+	}
+
 	ctx, stop := signal.NotifyContext(
 		context.Background(),
 		os.Interrupt,
@@ -81,15 +117,20 @@ func runSearch(args []string) error {
 		"indexing companies",
 		"limit", *limit,
 		"batch_size", *batchSize,
+		"all", *all,
+		"destination_table", *table,
+		"after_basic_cnpj", *after,
 	)
 
 	result, err := search.BuildIndex(
 		ctx,
 		mysqlv1.NewSearchSource(mysqlDatabase),
-		manticorestorage.NewIndex(manticore),
+		destination,
 		search.IndexOptions{
-			BatchSize: *batchSize,
-			Limit:     *limit,
+			BatchSize:      *batchSize,
+			Limit:          *limit,
+			All:            *all,
+			AfterBasicCNPJ: *after,
 		},
 		func(progress search.IndexProgress) {
 			slog.Info(

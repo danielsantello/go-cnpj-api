@@ -150,3 +150,63 @@ func TestBuildIndexHonorsCancellation(t *testing.T) {
 		t.Fatalf("expected cancellation before reading, got %v", err)
 	}
 }
+
+func TestBuildIndexProcessesFullSource(t *testing.T) {
+	source := &sourceStub{documents: testDocuments()}
+	index := &indexStub{}
+
+	result, err := BuildIndex(
+		context.Background(), source, index,
+		IndexOptions{BatchSize: 3, All: true},
+		nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Processed != 4 || result.LastBasicCNPJ != "00000004" {
+		t.Fatalf("unexpected full indexing result: %#v", result)
+	}
+	if len(index.batches) != 2 ||
+		len(index.batches[0]) != 3 ||
+		len(index.batches[1]) != 1 {
+		t.Fatalf("unexpected batches: %#v", index.batches)
+	}
+}
+
+func TestBuildIndexRejectsFullSourceWithLimit(t *testing.T) {
+	_, err := BuildIndex(
+		context.Background(),
+		&sourceStub{},
+		&indexStub{},
+		IndexOptions{BatchSize: 2, Limit: 10, All: true},
+		nil,
+	)
+	if err == nil {
+		t.Fatal("expected error when full indexing specifies a limit")
+	}
+}
+
+func TestBuildIndexResumesAfterCursor(t *testing.T) {
+	source := &sourceStub{documents: testDocuments()}
+	index := &indexStub{}
+
+	result, err := BuildIndex(
+		context.Background(), source, index,
+		IndexOptions{
+			BatchSize:      2,
+			All:            true,
+			AfterBasicCNPJ: "00000002",
+		},
+		nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Processed != 2 || result.LastBasicCNPJ != "00000004" {
+		t.Fatalf("unexpected resumed result: %#v", result)
+	}
+	if len(index.batches) != 1 ||
+		index.batches[0][0].BasicCNPJ != "00000003" {
+		t.Fatalf("unexpected resumed batches: %#v", index.batches)
+	}
+}
