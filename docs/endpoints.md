@@ -267,6 +267,12 @@ Com Manticore desabilitado, retorna HTTP 503 com código `SEARCH_DISABLED`.
 Validado com uma amostra de mil empresas. A busca cobre somente os
 documentos já indexados.
 
-Antes do uso com a base completa, ainda serão tratados os limites de
-paginação e contagem para grandes resultados, a substituição da publicação
-indexada e a indicação dos campos que corresponderam à busca.
+Ainda serão implementadas a substituição da publicação indexada
+e a indicação dos campos que corresponderam à busca.
+
+### Limite de resultados
+
+A busca permite até 1000 empresas por consulta, com paginação.
+
+Acima desse limite, retorna HTTP 422 com código `SEARCH_TOO_BROAD`,
+sem itens nem paginação. Refine a busca acrescentando termos.

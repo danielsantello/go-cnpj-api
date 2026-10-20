@@ -10,11 +10,15 @@ import (
 )
 
 type Repository struct {
-	db *sql.DB
+	db    *sql.DB
+	table string
 }
 
 func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		db:    db,
+		table: "cnpj_companies",
+	}
 }
 
 func (repository *Repository) Search(
@@ -33,14 +37,12 @@ func (repository *Repository) Search(
 		return result, nil
 	}
 
-	var total int64
-	err := repository.db.QueryRowContext(ctx, `
-		SELECT COUNT(*)
-		FROM cnpj_companies
-		WHERE MATCH(?)
-	`, expression).Scan(&total)
+	total, err := repository.countMatches(ctx, expression)
 	if err != nil {
-		return search.Result{}, fmt.Errorf("count Manticore results: %w", err)
+		return search.Result{}, err
+	}
+	if total > int64(search.MaximumResults) {
+		return search.Result{}, search.ErrTooBroad
 	}
 
 	result.Pagination = company.NewPagination(
@@ -56,10 +58,11 @@ func (repository *Repository) Search(
 
 	rows, err := repository.db.QueryContext(ctx, `
 		SELECT basic_cnpj, cnpj, corporate_name
-		FROM cnpj_companies
+		FROM `+repository.table+`
 		WHERE MATCH(?)
 		ORDER BY id ASC
 		LIMIT ? OFFSET ?
+		OPTION max_matches=1000, cutoff=0
 	`, expression, options.PageSize, offset)
 	if err != nil {
 		return search.Result{}, fmt.Errorf("query Manticore results: %w", err)
@@ -86,3 +89,34 @@ func (repository *Repository) Search(
 }
 
 var _ search.Repository = (*Repository)(nil)
+
+func (repository *Repository) countMatches(
+	ctx context.Context,
+	expression string,
+) (int64, error) {
+	rows, err := repository.db.QueryContext(ctx, `
+		SELECT id
+		FROM `+repository.table+`
+		WHERE MATCH(?)
+		LIMIT 1001
+		OPTION max_matches=1001, cutoff=0
+	`, expression)
+	if err != nil {
+		return 0, fmt.Errorf("check Manticore result limit: %w", err)
+	}
+	defer rows.Close()
+
+	var total int64
+	for rows.Next() {
+		var id uint64
+		if err := rows.Scan(&id); err != nil {
+			return 0, fmt.Errorf("scan Manticore match ID: %w", err)
+		}
+		total++
+	}
+
+	if err := rows.Err(); err != nil {
+		return 0, fmt.Errorf("iterate Manticore match IDs: %w", err)
+	}
+	return total, nil
+}

@@ -74,6 +74,15 @@ func newBroadSearchHandler(searcher broadSearcher) http.HandlerFunc {
 			)
 			return
 
+		case errors.Is(err, search.ErrTooBroad):
+			writeError(
+				response, request, http.StatusUnprocessableEntity,
+				"SEARCH_TOO_BROAD",
+				"Too many results were found. Refine your search.",
+				nil,
+			)
+			return
+
 		case err != nil:
 			slog.Error(
 				"broad search failed",

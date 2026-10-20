@@ -108,6 +108,7 @@ func TestBroadSearchHandlerMapsErrors(t *testing.T) {
 		{"pagination", search.ErrInvalidPagination, 400, "INVALID_QUERY_PARAMETERS"},
 		{"disabled", search.ErrDisabled, 503, "SEARCH_DISABLED"},
 		{"internal", errors.New("connection failed"), 500, "INTERNAL_ERROR"},
+		{"too broad", search.ErrTooBroad, 422, "SEARCH_TOO_BROAD"},
 	}
 
 	for _, test := range tests {

@@ -10,10 +10,13 @@ import (
 	"github.com/danielsantello/go-cnpj-api/internal/company"
 )
 
+const MaximumResults = 1000
+
 var (
 	ErrDisabled          = errors.New("search is disabled")
 	ErrInvalidName       = errors.New("name must contain between 3 and 255 characters")
 	ErrInvalidPagination = errors.New("invalid search pagination")
+	ErrTooBroad          = errors.New("too many results; refine your search")
 )
 
 type Options struct {
