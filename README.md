@@ -165,3 +165,35 @@ O endpoint `/health` também verifica o serviço habilitado:
 `search.status` retorna `available` ou `unavailable`.
 Se a verificação falhar, o endpoint retorna HTTP 503.
 Quando desabilitado, retorna `disabled`.
+
+### Carga inicial do índice de busca
+
+Com MySQL e Manticore configurados e as variáveis carregadas, execute:
+
+```bash
+go run ./cmd/cnpj-api search index --limit=1000 --batch-size=100
+```
+
+O comando cria a tabela no Manticore, se necessário, e indexa até
+mil empresas, em lotes de cem, seguindo a ordem do CNPJ básico.
+
+Cada documento reúne razão social, nomes fantasia e nomes dos sócios
+de uma empresa. O MySQL é utilizado somente para leitura.
+
+| Opção | Padrão | Descrição |
+|---|---:|---|
+| `--limit` | 1000 | Quantidade máxima de empresas nesta execução; deve ser positiva |
+| `--batch-size` | 100 | Empresas por lote; de 1 a 1000 |
+
+Repetir a carga atualiza os documentos com os mesmos identificadores,
+sem duplicá-los. O comando não remove documentos de publicações anteriores.
+
+Nesta etapa, o índice é parcial. A busca HTTP e o procedimento de
+substituição completa da base ainda estão em implementação.
+
+Na amostra de 20/10/2026, com Manticore 29.9.0 e MySQL 8.4.11,
+mil empresas foram processadas em 1,053s; a execução completa com
+`time go run` levou 1,618s. Repetir a carga manteve mil documentos.
+
+Esses tempos representam somente a amostra e não estimam a duração
+da carga completa.

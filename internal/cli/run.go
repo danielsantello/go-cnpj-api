@@ -12,6 +12,8 @@ func Run(args []string) error {
 		return serve()
 	case "database":
 		return runDatabase(args[1:])
+	case "search":
+		return runSearch(args[1:])
 	default:
 		return fmt.Errorf("unknown command: %s", args[0])
 	}
