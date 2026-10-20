@@ -73,7 +73,11 @@ func BuildIndex(
 		cursor := result.LastBasicCNPJ
 		for _, document := range documents {
 			if document.BasicCNPJ <= cursor {
-				return result, fmt.Errorf("source returned an unordered or repeated basic CNPJ")
+				return result, fmt.Errorf(
+					"source returned an unordered or repeated basic CNPJ: previous=%q current=%q",
+					cursor,
+					document.BasicCNPJ,
+				)
 			}
 			cursor = document.BasicCNPJ
 		}

@@ -29,7 +29,7 @@ func (source *SearchSource) ReadBatch(
 
 	rows, err := source.db.QueryContext(ctx, `
 		SELECT cnpj_root, legal_name
-		FROM companies
+		FROM companies FORCE INDEX (idx_companies_cnpj_root)
 		WHERE cnpj_root > ?
 		ORDER BY cnpj_root
 		LIMIT ?
