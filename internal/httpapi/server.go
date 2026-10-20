@@ -9,6 +9,7 @@ type companyService interface {
 	companyFinder
 	companySearcher
 	establishmentSearcher
+	partnerSearcher
 }
 
 func NewServer(
@@ -36,6 +37,11 @@ func NewServer(
 	mux.HandleFunc(
 		"GET /v1/establishments",
 		newEstablishmentSearchHandler(companies),
+	)
+
+	mux.HandleFunc(
+		"GET /v1/partners",
+		newPartnerSearchHandler(companies),
 	)
 
 	return &http.Server{

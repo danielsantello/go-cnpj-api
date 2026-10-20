@@ -95,11 +95,11 @@ em container Docker.
 |---|---:|
 | Estabelecimentos — registros estimados | 64,6 milhões |
 | Empresas — registros estimados | 62,1 milhões |
-| Índices no catálogo | 13 |
+| Índices no catálogo | 14 |
 | Criação dos 11 índices iniciais | 11m02,542s |
 | Índice de razão social | 5m09,641s |
 | Índice de nome fantasia | 5m15s |
-| Total acumulado de criação dos 13 índices | Aproximadamente 21m27s |
+| Total acumulado de criação dos 14 índices | Aproximadamente 23m27s |
 | Verificação com 12 índices já existentes | 0,596s |
 
 O total de criação é uma soma aproximada de execuções distintas.
@@ -117,6 +117,7 @@ para os tempos por tabela e as condições de medição.
 | GET | `/v1/companies/{cnpj}` | Consultar dados pelo CNPJ |
 | GET | `/v1/companies?name=SANTELLO` | Buscar por início da razão social |
 | GET | `/v1/establishments?name=SANTELLO` | Buscar por início do nome fantasia |
+| GET | `/v1/partners?name=SANTELLO` | Buscar sócios e empresas vinculadas |
 
 Exemplo de busca:
 

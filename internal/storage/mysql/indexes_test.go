@@ -8,7 +8,7 @@ func TestIndexDefinitionsForFormatAcceptsVersion1(t *testing.T) {
 		t.Fatalf("get index definitions: %v", err)
 	}
 
-	expectedCount := 13
+	expectedCount := 14
 
 	if len(indexes) != expectedCount {
 		t.Fatalf(

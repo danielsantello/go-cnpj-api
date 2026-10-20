@@ -174,3 +174,50 @@ O identificador também é retornado no cabeçalho `X-Request-ID`.
 
 Consulte [Índices do MySQL](indexes.md) para o comando de criação
 e os tempos observados.
+
+## Busca por sócio
+
+`GET /v1/partners`
+
+Sem `document`, busca pelo início do nome do sócio:
+
+```bash
+curl -sS --get 'http://localhost:8080/v1/partners' \
+  --data-urlencode 'name=SANTELLO' \
+  --data-urlencode 'page=1' \
+  --data-urlencode 'page_size=5'
+```
+
+Com `document`, busca por nome completo e documento por igualdade:
+
+```bash
+curl -sS --get 'http://localhost:8080/v1/partners' \
+  --data-urlencode 'name=SANTELLO PRA NIEDENS' \
+  --data-urlencode 'document=***111769**'
+```
+
+| Parâmetro | Obrigatório | Descrição |
+|---|---|---|
+| `name` | Sim | Nome entre 3 e 255 caracteres; prefixo sem documento, nome completo com documento |
+| `document` | Não | Documento como consta na base, incluindo a máscara; entre 1 e 20 caracteres |
+| `page` | Não | Página solicitada; padrão: 1 |
+| `page_size` | Não | Itens por página, de 1 a 100; padrão: 20 |
+
+Espaços nas extremidades do nome e do documento são removidos.
+Na busca por prefixo, `%` e `_` são tratados literalmente.
+
+Os resultados ficam em `data.partners.items`. Cada item contém:
+
+- `name`: nome do sócio.
+- `document`: documento conforme a base, podendo ser nulo.
+- `cnpj`: CNPJ da empresa vinculada, preferencialmente o da matriz.
+- `corporate_name`: razão social da empresa.
+
+Um sócio pode aparecer vinculado a várias empresas. O documento
+mascarado ajuda a distinguir homônimos, mas não garante identidade.
+
+A resposta inclui `data.partners.pagination`, no mesmo formato das
+demais buscas. Sem resultados, retorna HTTP 200 com `items: []`.
+
+Parâmetros inválidos retornam HTTP 400 com código
+`INVALID_QUERY_PARAMETERS`.

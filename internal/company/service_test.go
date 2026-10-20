@@ -21,6 +21,10 @@ type companyRepositoryStub struct {
 	tradeNameSearchCalls           int
 	tradeNameSearchResult          EstablishmentSearchResult
 	tradeNameSearchErr             error
+	receivedPartnerSearchOptions   PartnerSearchOptions
+	partnerSearchCalls             int
+	partnerSearchResult            PartnerSearchResult
+	partnerSearchErr               error
 }
 
 func (repository *companyRepositoryStub) FindByCNPJ(
@@ -267,4 +271,14 @@ func TestServiceSearchByCorporateNameRejectsLongInput(t *testing.T) {
 			repository.searchCalls,
 		)
 	}
+}
+
+func (repository *companyRepositoryStub) SearchByPartnerName(
+	_ context.Context,
+	options PartnerSearchOptions,
+) (PartnerSearchResult, error) {
+	repository.partnerSearchCalls++
+	repository.receivedPartnerSearchOptions = options
+
+	return repository.partnerSearchResult, repository.partnerSearchErr
 }

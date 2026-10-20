@@ -69,3 +69,20 @@ Estimativas obtidas de `information_schema.tables`:
 | `companies` | 62.139.658 | 5,71 GB |
 | `simple_tax_options` | 48.215.694 | 2,25 GB |
 | `partners` | 26.232.166 | 2,67 GB |
+
+## Índice de busca por sócio
+
+Índice `idx_partners_name_document_cnpj_root`, nas colunas
+`(partner_name, partner_document, cnpj_root)`.
+
+Criado em 20/10/2026, no mesmo ambiente de referência:
+
+| Medição | Tempo observado |
+|---|---:|
+| Criação pelos logs, de 11:04:01 a 11:06:00 | 1m59s |
+| Execução completa com `time go run` | 1m59,686s |
+
+Resultado: `created=1 existing=13`, totalizando 14 índices no catálogo.
+
+O total acumulado aproximado das criações passa a 23m27s,
+somando execuções distintas.

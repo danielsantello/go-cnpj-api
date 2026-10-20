@@ -31,4 +31,9 @@ type Repository interface {
 		ctx context.Context,
 		options SearchOptions,
 	) (EstablishmentSearchResult, error)
+
+	SearchByPartnerName(
+		ctx context.Context,
+		options PartnerSearchOptions,
+	) (PartnerSearchResult, error)
 }
