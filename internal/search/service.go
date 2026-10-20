@@ -26,9 +26,10 @@ type Options struct {
 }
 
 type Item struct {
-	BasicCNPJ     string `json:"basic_cnpj"`
-	CNPJ          string `json:"cnpj"`
-	CorporateName string `json:"corporate_name"`
+	BasicCNPJ     string   `json:"basic_cnpj"`
+	CNPJ          string   `json:"cnpj"`
+	CorporateName string   `json:"corporate_name"`
+	MatchedFields []string `json:"matched_fields"`
 }
 
 type Result struct {

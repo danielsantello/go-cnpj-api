@@ -46,7 +46,9 @@ func TestRepositorySearchResultLimitIntegration(t *testing.T) {
 		CREATE TABLE `+table+` (
 			basic_cnpj string,
 			cnpj string,
-			corporate_name text
+			corporate_name text,
+			trade_names text,
+			partner_names text
 		)
 	`)
 	if err != nil {
@@ -108,6 +110,13 @@ func TestRepositorySearchResultLimitIntegration(t *testing.T) {
 	if result.Items[0].BasicCNPJ != "00000901" ||
 		result.Items[99].BasicCNPJ != "00001000" {
 		t.Fatal("last page returned unexpected documents")
+	}
+
+	for _, item := range result.Items {
+		if len(item.MatchedFields) != 1 ||
+			item.MatchedFields[0] != "corporate_name" {
+			t.Fatalf("unexpected matched fields: %v", item.MatchedFields)
+		}
 	}
 
 	result, err = service.Search(ctx, search.Options{

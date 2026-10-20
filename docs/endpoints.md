@@ -255,7 +255,12 @@ por qualquer trecho dentro de uma palavra.
 Pontuação é tratada como separador; operadores de consulta do Manticore
 não são expostos. Texto composto somente por pontuação retorna lista vazia.
 
-Cada empresa aparece uma vez, com `basic_cnpj`, `cnpj` e `corporate_name`.
+Cada empresa aparece uma vez, com `basic_cnpj`, `cnpj`, `corporate_name`
+e `matched_fields`.
+
+O campo `matched_fields` indica onde pelo menos um dos termos foi
+encontrado: `corporate_name` (razão social), `trade_names` (nomes fantasia)
+ou `partner_names` (nomes dos sócios).
 Os resultados ficam em `data.companies.items`, ordenados pelo identificador
 derivado do CNPJ básico, com paginação em `data.companies.pagination`.
 
@@ -263,9 +268,6 @@ Sem resultados, retorna HTTP 200 com `items: []`.
 Com Manticore desabilitado, retorna HTTP 503 com código `SEARCH_DISABLED`.
 
 ### Estado atual
-
-Validado com uma amostra de mil empresas. A busca cobre somente os
-documentos já indexados.
 
 Ainda serão implementadas a substituição da publicação indexada
 e a indicação dos campos que corresponderam à busca.

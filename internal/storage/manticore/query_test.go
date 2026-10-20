@@ -24,3 +24,16 @@ func TestSearchExpression(t *testing.T) {
 		})
 	}
 }
+
+func TestFieldSearchExpression(t *testing.T) {
+	got := fieldSearchExpression("partner_names", "banco silva")
+	expected := `@partner_names ("banco" | "silva")`
+
+	if got != expected {
+		t.Fatalf("expected %q, got %q", expected, got)
+	}
+
+	if got := fieldSearchExpression("partner_names", "***"); got != "" {
+		t.Fatalf("expected empty expression, got %q", got)
+	}
+}

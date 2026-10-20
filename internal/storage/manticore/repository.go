@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/danielsantello/go-cnpj-api/internal/company"
 	"github.com/danielsantello/go-cnpj-api/internal/search"
@@ -57,7 +58,7 @@ func (repository *Repository) Search(
 	offset := int64(options.Page-1) * int64(options.PageSize)
 
 	rows, err := repository.db.QueryContext(ctx, `
-		SELECT basic_cnpj, cnpj, corporate_name
+		SELECT id, basic_cnpj, cnpj, corporate_name
 		FROM `+repository.table+`
 		WHERE MATCH(?)
 		ORDER BY id ASC
@@ -69,20 +70,38 @@ func (repository *Repository) Search(
 	}
 	defer rows.Close()
 
+	ids := make([]uint64, 0, options.PageSize)
+
 	for rows.Next() {
+		var id uint64
 		var item search.Item
+		item.MatchedFields = []string{}
+
 		if err := rows.Scan(
+			&id,
 			&item.BasicCNPJ,
 			&item.CNPJ,
 			&item.CorporateName,
 		); err != nil {
 			return search.Result{}, fmt.Errorf("scan Manticore result: %w", err)
 		}
+
+		ids = append(ids, id)
 		result.Items = append(result.Items, item)
 	}
 
 	if err := rows.Err(); err != nil {
 		return search.Result{}, fmt.Errorf("iterate Manticore results: %w", err)
+	}
+
+	if err := rows.Close(); err != nil {
+		return search.Result{}, fmt.Errorf("close Manticore results: %w", err)
+	}
+
+	if err := repository.fillMatchedFields(
+		ctx, options.Name, ids, result.Items,
+	); err != nil {
+		return search.Result{}, err
 	}
 
 	return result, nil
@@ -119,4 +138,71 @@ func (repository *Repository) countMatches(
 		return 0, fmt.Errorf("iterate Manticore match IDs: %w", err)
 	}
 	return total, nil
+}
+
+func (repository *Repository) fillMatchedFields(
+	ctx context.Context,
+	name string,
+	ids []uint64,
+	items []search.Item,
+) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	positions := make(map[uint64]int, len(ids))
+	placeholders := make([]string, len(ids))
+	for position, id := range ids {
+		positions[id] = position
+		placeholders[position] = "?"
+	}
+
+	for _, field := range []string{
+		"corporate_name",
+		"trade_names",
+		"partner_names",
+	} {
+		arguments := make([]any, 0, len(ids)+1)
+		arguments = append(arguments, fieldSearchExpression(field, name))
+		for _, id := range ids {
+			arguments = append(arguments, id)
+		}
+
+		rows, err := repository.db.QueryContext(ctx, `
+			SELECT id
+			FROM `+repository.table+`
+			WHERE MATCH(?)
+				AND id IN (`+strings.Join(placeholders, ",")+`)
+			LIMIT 100
+			OPTION max_matches=100, cutoff=0
+		`, arguments...)
+		if err != nil {
+			return fmt.Errorf("query matching field %s: %w", field, err)
+		}
+
+		for rows.Next() {
+			var id uint64
+			if err := rows.Scan(&id); err != nil {
+				rows.Close()
+				return fmt.Errorf("scan matching field %s: %w", field, err)
+			}
+
+			if position, exists := positions[id]; exists {
+				items[position].MatchedFields = append(
+					items[position].MatchedFields, field,
+				)
+			}
+		}
+
+		readErr := rows.Err()
+		closeErr := rows.Close()
+		if readErr != nil {
+			return fmt.Errorf("iterate matching field %s: %w", field, readErr)
+		}
+		if closeErr != nil {
+			return fmt.Errorf("close matching field %s: %w", field, closeErr)
+		}
+	}
+
+	return nil
 }
