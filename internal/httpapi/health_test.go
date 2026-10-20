@@ -21,7 +21,7 @@ func (stub mysqlPingerStub) PingContext(_ context.Context) error {
 func TestHealthReturnsHealthyWhenMySQLIsAvailable(t *testing.T) {
 	mysql := mysqlPingerStub{}
 
-	server := NewServer(":0", mysql, time.Second, nil)
+	server := NewServer(":0", mysql, time.Second, nil, nil, time.Second)
 
 	request := httptest.NewRequest(http.MethodGet, "/health", nil)
 	response := httptest.NewRecorder()
@@ -69,7 +69,7 @@ func TestHealthReturnsUnhealthyWhenMySQLIsUnavailable(t *testing.T) {
 		err: errors.New("MySQL unavailable"),
 	}
 
-	server := NewServer(":0", mysql, time.Second, nil)
+	server := NewServer(":0", mysql, time.Second, nil, nil, time.Second)
 
 	request := httptest.NewRequest(http.MethodGet, "/health", nil)
 	response := httptest.NewRecorder()
@@ -109,5 +109,61 @@ func TestHealthReturnsUnhealthyWhenMySQLIsUnavailable(t *testing.T) {
 			"expected search status disabled, got %q",
 			payload.Services.Search.Status,
 		)
+	}
+}
+
+func TestHealthChecksEnabledSearch(t *testing.T) {
+	tests := []struct {
+		name         string
+		searchError  error
+		statusCode   int
+		status       string
+		searchStatus string
+	}{
+		{
+			name:         "available",
+			statusCode:   http.StatusOK,
+			status:       "healthy",
+			searchStatus: "available",
+		},
+		{
+			name:         "unavailable",
+			searchError:  errors.New("Manticore unavailable"),
+			statusCode:   http.StatusServiceUnavailable,
+			status:       "unhealthy",
+			searchStatus: "unavailable",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			server := NewServer(
+				":0",
+				mysqlPingerStub{},
+				time.Second,
+				nil,
+				mysqlPingerStub{err: test.searchError},
+				time.Second,
+			)
+
+			response := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodGet, "/health", nil)
+			server.Handler.ServeHTTP(response, request)
+
+			if response.Code != test.statusCode {
+				t.Fatalf("expected status %d, got %d", test.statusCode, response.Code)
+			}
+
+			var payload healthResponse
+			if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+				t.Fatalf("decode response: %v", err)
+			}
+
+			if payload.Status != test.status ||
+				payload.Services.MySQL.Status != "available" ||
+				payload.Services.Search.Status != test.searchStatus {
+				t.Fatalf("unexpected health response: %#v", payload)
+			}
+		})
 	}
 }

@@ -25,7 +25,12 @@ type healthResponse struct {
 	Services healthServices `json:"services"`
 }
 
-func newHealthHandler(mysql MySQLPinger, timeout time.Duration) http.HandlerFunc {
+func newHealthHandler(
+	mysql MySQLPinger,
+	timeout time.Duration,
+	search MySQLPinger,
+	searchTimeout time.Duration,
+) http.HandlerFunc {
 	return func(response http.ResponseWriter, request *http.Request) {
 		pingContext, cancelPing := context.WithTimeout(
 			request.Context(),
@@ -53,6 +58,25 @@ func newHealthHandler(mysql MySQLPinger, timeout time.Duration) http.HandlerFunc
 			statusCode = http.StatusServiceUnavailable
 			payload.Status = "unhealthy"
 			payload.Services.MySQL.Status = "unavailable"
+		}
+
+		if search != nil {
+			payload.Services.Search.Status = "available"
+
+			searchContext, cancelSearch := context.WithTimeout(
+				request.Context(),
+				searchTimeout,
+			)
+			err := search.PingContext(searchContext)
+			cancelSearch()
+
+			if err != nil {
+				slog.Error("Manticore health check failed", "error", err)
+
+				statusCode = http.StatusServiceUnavailable
+				payload.Status = "unhealthy"
+				payload.Services.Search.Status = "unavailable"
+			}
 		}
 
 		if err := writeJSON(response, statusCode, payload); err != nil {

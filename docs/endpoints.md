@@ -31,8 +31,11 @@ Com o MySQL disponível, retorna HTTP 200:
 Se a verificação do MySQL falhar, retorna HTTP 503, com status
 `unhealthy` e MySQL `unavailable`.
 
-O campo `search` representa o serviço adicional de busca, atualmente
-desabilitado. As buscas por prefixo funcionam pelo MySQL.
+O campo `search` representa o Manticore Search, uma integração opcional.
+Quando desabilitado, retorna `disabled`; quando habilitado, retorna
+`available` ou `unavailable`, conforme a conexão. Se qualquer serviço
+habilitado estiver indisponível, o endpoint retorna HTTP 503 com
+status `unhealthy`. As buscas por prefixo utilizam o MySQL.
 
 ## Consulta por CNPJ
 

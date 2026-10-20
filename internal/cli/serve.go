@@ -32,6 +32,12 @@ func serve() error {
 	}
 	defer closeMySQL(mysqlDatabase)
 
+	manticore, err := initializeManticore(configuration)
+	if err != nil {
+		return err
+	}
+	defer closeManticore(manticore)
+
 	companyRepository, err := mysqlstorage.NewCompanyRepository(
 		mysqlDatabase,
 		formatVersion,
@@ -42,11 +48,18 @@ func serve() error {
 
 	companyService := company.NewService(companyRepository)
 
+	var searchPinger httpapi.MySQLPinger
+	if manticore != nil {
+		searchPinger = manticore
+	}
+
 	server := httpapi.NewServer(
 		configuration.HTTPAddress,
 		mysqlDatabase,
 		configuration.MySQLConnectTimeout,
 		companyService,
+		searchPinger,
+		configuration.ManticoreConnectTimeout,
 	)
 
 	// signalContext is canceled when the process receives SIGINT or SIGTERM.

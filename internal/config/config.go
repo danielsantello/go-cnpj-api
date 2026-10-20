@@ -25,26 +25,42 @@ const (
 	defaultMySQLHost           = "127.0.0.1"
 	defaultMySQLPort           = uint16(3306)
 	defaultMySQLConnectTimeout = 5 * time.Second
+
+	manticoreEnabledEnvironmentVariable        = "CNPJ_API_MANTICORE_ENABLED"
+	manticoreHostEnvironmentVariable           = "CNPJ_API_MANTICORE_HOST"
+	manticorePortEnvironmentVariable           = "CNPJ_API_MANTICORE_PORT"
+	manticoreConnectTimeoutEnvironmentVariable = "CNPJ_API_MANTICORE_CONNECT_TIMEOUT"
+
+	defaultManticoreHost           = "127.0.0.1"
+	defaultManticorePort           = uint16(9306)
+	defaultManticoreConnectTimeout = 5 * time.Second
 )
 
 type Config struct {
-	HTTPAddress         string
-	ShutdownTimeout     time.Duration
-	MySQLHost           string
-	MySQLPort           uint16
-	MySQLDatabase       string
-	MySQLUser           string
-	MySQLPassword       string
-	MySQLConnectTimeout time.Duration
+	HTTPAddress             string
+	ShutdownTimeout         time.Duration
+	MySQLHost               string
+	MySQLPort               uint16
+	MySQLDatabase           string
+	MySQLUser               string
+	MySQLPassword           string
+	MySQLConnectTimeout     time.Duration
+	ManticoreEnabled        bool
+	ManticoreHost           string
+	ManticorePort           uint16
+	ManticoreConnectTimeout time.Duration
 }
 
 func Default() Config {
 	return Config{
-		HTTPAddress:         defaultHTTPAddress,
-		ShutdownTimeout:     defaultShutdownTimeout,
-		MySQLHost:           defaultMySQLHost,
-		MySQLPort:           defaultMySQLPort,
-		MySQLConnectTimeout: defaultMySQLConnectTimeout,
+		HTTPAddress:             defaultHTTPAddress,
+		ShutdownTimeout:         defaultShutdownTimeout,
+		MySQLHost:               defaultMySQLHost,
+		MySQLPort:               defaultMySQLPort,
+		MySQLConnectTimeout:     defaultMySQLConnectTimeout,
+		ManticoreHost:           defaultManticoreHost,
+		ManticorePort:           defaultManticorePort,
+		ManticoreConnectTimeout: defaultManticoreConnectTimeout,
 	}
 }
 
@@ -110,6 +126,43 @@ func Load() (Config, error) {
 		config.MySQLConnectTimeout = connectTimeout
 	}
 
+	if value, exists := os.LookupEnv(manticoreEnabledEnvironmentVariable); exists {
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return Config{}, fmt.Errorf(
+				"%s must be a valid boolean: %w",
+				manticoreEnabledEnvironmentVariable, err,
+			)
+		}
+		config.ManticoreEnabled = enabled
+	}
+
+	if value, exists := os.LookupEnv(manticoreHostEnvironmentVariable); exists {
+		config.ManticoreHost = value
+	}
+
+	if value, exists := os.LookupEnv(manticorePortEnvironmentVariable); exists {
+		port, err := strconv.ParseUint(value, 10, 16)
+		if err != nil {
+			return Config{}, fmt.Errorf(
+				"%s must be a valid TCP port: %w",
+				manticorePortEnvironmentVariable, err,
+			)
+		}
+		config.ManticorePort = uint16(port)
+	}
+
+	if value, exists := os.LookupEnv(manticoreConnectTimeoutEnvironmentVariable); exists {
+		timeout, err := time.ParseDuration(value)
+		if err != nil {
+			return Config{}, fmt.Errorf(
+				"%s must be a valid duration: %w",
+				manticoreConnectTimeoutEnvironmentVariable, err,
+			)
+		}
+		config.ManticoreConnectTimeout = timeout
+	}
+
 	return config, nil
 }
 
@@ -151,6 +204,29 @@ func Validate(config Config) error {
 			"%s must be greater than zero",
 			mysqlConnectTimeoutEnvironmentVariable,
 		)
+	}
+
+	if config.ManticoreEnabled {
+		if strings.TrimSpace(config.ManticoreHost) == "" {
+			return fmt.Errorf(
+				"%s must not be empty",
+				manticoreHostEnvironmentVariable,
+			)
+		}
+
+		if config.ManticorePort == 0 {
+			return fmt.Errorf(
+				"%s must be greater than zero",
+				manticorePortEnvironmentVariable,
+			)
+		}
+
+		if config.ManticoreConnectTimeout <= 0 {
+			return fmt.Errorf(
+				"%s must be greater than zero",
+				manticoreConnectTimeoutEnvironmentVariable,
+			)
+		}
 	}
 
 	return nil

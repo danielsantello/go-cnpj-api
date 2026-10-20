@@ -138,3 +138,30 @@ Veja os [endpoints e exemplos de utilização](docs/endpoints.md).
 ```bash
 go test ./...
 ```
+
+## Manticore Search — opcional
+
+A API permite habilitar a conexão com o Manticore Search.
+A busca ampla e a carga do índice ainda estão em implementação.
+
+Ambiente validado com Manticore Search 29.9.0 em Docker.
+
+Para habilitar, acrescente às variáveis de ambiente:
+
+```dotenv
+CNPJ_API_MANTICORE_ENABLED=true
+CNPJ_API_MANTICORE_HOST=127.0.0.1
+CNPJ_API_MANTICORE_PORT=9306
+CNPJ_API_MANTICORE_CONNECT_TIMEOUT=5s
+```
+
+Por padrão, a integração está desabilitada. As consultas e buscas
+por prefixo continuam disponíveis usando apenas MySQL.
+
+Quando habilitado, o Manticore é verificado na inicialização.
+Se a conexão falhar, a API não inicia.
+
+O endpoint `/health` também verifica o serviço habilitado:
+`search.status` retorna `available` ou `unavailable`.
+Se a verificação falhar, o endpoint retorna HTTP 503.
+Quando desabilitado, retorna `disabled`.

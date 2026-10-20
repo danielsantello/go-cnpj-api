@@ -17,11 +17,18 @@ func NewServer(
 	mysql MySQLPinger,
 	healthCheckTimeout time.Duration,
 	companies companyService,
+	search MySQLPinger,
+	searchHealthCheckTimeout time.Duration,
 ) *http.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc(
 		"GET /health",
-		newHealthHandler(mysql, healthCheckTimeout),
+		newHealthHandler(
+			mysql,
+			healthCheckTimeout,
+			search,
+			searchHealthCheckTimeout,
+		),
 	)
 
 	mux.HandleFunc(
