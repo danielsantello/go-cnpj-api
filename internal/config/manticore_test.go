@@ -113,3 +113,59 @@ func TestValidateManticoreConfiguration(t *testing.T) {
 		})
 	}
 }
+
+func TestManticoreTableDefaultAndEnvironment(t *testing.T) {
+	if got := Default().ManticoreTable; got != "cnpj_companies" {
+		t.Fatalf("unexpected default table: %q", got)
+	}
+
+	t.Setenv(manticoreTableEnvironmentVariable, "cnpj_companies_2026_08")
+	got, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ManticoreTable != "cnpj_companies_2026_08" {
+		t.Fatalf("unexpected configured table: %q", got.ManticoreTable)
+	}
+}
+
+func TestValidateManticoreTable(t *testing.T) {
+	configuration := Default()
+	configuration.MySQLDatabase = "cnpj_test"
+	configuration.MySQLUser = "test"
+	configuration.MySQLPassword = "test"
+	configuration.ManticoreEnabled = true
+
+	for _, name := range []string{
+		"cnpj_companies",
+		"cnpj_companies_2026_08",
+		"cnpj_companies_2026_08_test",
+	} {
+		configuration.ManticoreTable = name
+		if err := Validate(configuration); err != nil {
+			t.Fatalf("accept table %q: %v", name, err)
+		}
+	}
+
+	for _, name := range []string{
+		"",
+		"other_table",
+		"cnpj_companies_",
+		"cnpj_companies_TEST",
+		"cnpj_companies_test; DROP TABLE x",
+		"cnpj_companies_" + strings.Repeat("a", 49),
+	} {
+		configuration.ManticoreTable = name
+		err := Validate(configuration)
+		if err == nil ||
+			!strings.Contains(err.Error(), manticoreTableEnvironmentVariable) {
+			t.Fatalf("expected table validation error for %q, got %v", name, err)
+		}
+	}
+
+	configuration.ManticoreEnabled = false
+	configuration.ManticoreTable = ""
+	if err := Validate(configuration); err != nil {
+		t.Fatalf("disabled Manticore should not require a table: %v", err)
+	}
+}

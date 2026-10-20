@@ -22,6 +22,18 @@ func NewRepository(db *sql.DB) *Repository {
 	}
 }
 
+func NewRepositoryForTable(db *sql.DB, table string) (*Repository, error) {
+	if table != "cnpj_companies" &&
+		!indexTableNamePattern.MatchString(table) {
+		return nil, fmt.Errorf("invalid Manticore search table name: %q", table)
+	}
+
+	return &Repository{
+		db:    db,
+		table: table,
+	}, nil
+}
+
 func (repository *Repository) Search(
 	ctx context.Context,
 	options search.Options,

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -29,10 +30,12 @@ const (
 	manticoreEnabledEnvironmentVariable        = "CNPJ_API_MANTICORE_ENABLED"
 	manticoreHostEnvironmentVariable           = "CNPJ_API_MANTICORE_HOST"
 	manticorePortEnvironmentVariable           = "CNPJ_API_MANTICORE_PORT"
+	manticoreTableEnvironmentVariable          = "CNPJ_API_MANTICORE_TABLE"
 	manticoreConnectTimeoutEnvironmentVariable = "CNPJ_API_MANTICORE_CONNECT_TIMEOUT"
 
 	defaultManticoreHost           = "127.0.0.1"
 	defaultManticorePort           = uint16(9306)
+	defaultManticoreTable          = "cnpj_companies"
 	defaultManticoreConnectTimeout = 5 * time.Second
 )
 
@@ -48,6 +51,7 @@ type Config struct {
 	ManticoreEnabled        bool
 	ManticoreHost           string
 	ManticorePort           uint16
+	ManticoreTable          string
 	ManticoreConnectTimeout time.Duration
 }
 
@@ -60,6 +64,7 @@ func Default() Config {
 		MySQLConnectTimeout:     defaultMySQLConnectTimeout,
 		ManticoreHost:           defaultManticoreHost,
 		ManticorePort:           defaultManticorePort,
+		ManticoreTable:          defaultManticoreTable,
 		ManticoreConnectTimeout: defaultManticoreConnectTimeout,
 	}
 }
@@ -163,6 +168,10 @@ func Load() (Config, error) {
 		config.ManticoreConnectTimeout = timeout
 	}
 
+	if value, exists := os.LookupEnv(manticoreTableEnvironmentVariable); exists {
+		config.ManticoreTable = value
+	}
+
 	return config, nil
 }
 
@@ -207,6 +216,15 @@ func Validate(config Config) error {
 	}
 
 	if config.ManticoreEnabled {
+		if !regexp.MustCompile(
+			`^cnpj_companies(_[a-z0-9_]{1,48})?$`,
+		).MatchString(config.ManticoreTable) {
+			return fmt.Errorf(
+				"%s must be cnpj_companies or cnpj_companies_ followed by 1 to 48 lowercase letters, digits or underscores",
+				manticoreTableEnvironmentVariable,
+			)
+		}
+
 		if strings.TrimSpace(config.ManticoreHost) == "" {
 			return fmt.Errorf(
 				"%s must not be empty",

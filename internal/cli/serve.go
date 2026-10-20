@@ -57,7 +57,20 @@ func serve() error {
 
 	var searchRepository search.Repository
 	if manticore != nil {
-		searchRepository = manticorestorage.NewRepository(manticore)
+		repository, err := manticorestorage.NewRepositoryForTable(
+			manticore,
+			configuration.ManticoreTable,
+		)
+		if err != nil {
+			return fmt.Errorf("initialize Manticore search repository: %w", err)
+		}
+
+		searchRepository = repository
+
+		slog.Info(
+			"Manticore search table configured",
+			"table", configuration.ManticoreTable,
+		)
 	}
 
 	broadSearchService := search.NewService(searchRepository)

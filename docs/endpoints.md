@@ -269,8 +269,8 @@ Com Manticore desabilitado, retorna HTTP 503 com código `SEARCH_DISABLED`.
 
 ### Estado atual
 
-Ainda serão implementadas a substituição da publicação indexada
-e a indicação dos campos que corresponderam à busca.
+A tabela consultada é definida por `CNPJ_API_MANTICORE_TABLE`.
+A troca exige reiniciar a API após concluir e validar a carga.
 
 ### Limite de resultados
 

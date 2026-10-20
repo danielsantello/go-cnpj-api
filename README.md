@@ -233,8 +233,9 @@ Para uma nova publicação, utilize uma tabela nova. Reutilizar uma tabela
 atualiza os documentos existentes, mas não remove empresas ausentes
 da nova base.
 
-Criar e carregar a tabela não a ativa para consultas. A API continua
-consultando `cnpj_companies`; a troca da tabela ativa ainda será implementada.
+Criar e carregar a tabela não a ativa para consultas. A tabela utilizada
+pela API é definida por `CNPJ_API_MANTICORE_TABLE`, com padrão
+`cnpj_companies`.
 
 ### Retomada de carga
 
@@ -257,3 +258,32 @@ de destino explícita. Ela não verifica se todos os documentos anteriores
 ao cursor estão presentes: não deve ser usada para iniciar uma tabela vazia.
 
 O contador `processed` considera apenas os documentos da execução atual.
+
+### Troca da tabela ativa
+
+Após concluir e validar a carga de uma publicação, ajuste o `.env`:
+
+```dotenv
+CNPJ_API_MANTICORE_TABLE=cnpj_companies_2026_08
+```
+
+Recarregue as variáveis e reinicie a API:
+
+```bash
+set -a
+source .env
+set +a
+go run ./cmd/cnpj-api serve
+```
+
+Encerre a execução anterior com `Ctrl+C` antes de iniciar novamente.
+
+O log `Manticore search table configured` informa a tabela selecionada.
+A configuração valida o nome, mas não comprova que a carga está completa
+ou que corresponde à publicação do MySQL.
+
+Mantenha a tabela anterior até validar as consultas. Para voltar a ela,
+restaure o valor anterior da variável e reinicie a API.
+
+A troca não copia nem remove documentos. A tabela ativa do Manticore
+e a base MySQL devem corresponder à mesma publicação.
