@@ -151,7 +151,9 @@ Uma página além dos resultados disponíveis também retorna uma lista vazia.
 | 400 | `INVALID_QUERY_PARAMETERS` | Nome, inclusão ou paginação inválidos |
 | 400 | `INVALID_CNPJ` | CNPJ com mais de 14 caracteres após a normalização |
 | 404 | `COMPANY_NOT_FOUND` | Nenhuma empresa encontrada para o CNPJ |
+| 422 | `SEARCH_TOO_BROAD` | Busca com mais de 1000 resultados |
 | 500 | `INTERNAL_ERROR` | Erro interno durante a consulta |
+| 503 | `SEARCH_DISABLED` | Busca ampla com Manticore desabilitado |
 
 Os erros das consultas usam o formato:
 

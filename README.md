@@ -2,8 +2,9 @@
 
 API em Go para consulta de dados públicos de CNPJ da Receita Federal.
 
-Permite consultar uma empresa pelo CNPJ e pesquisar por início da razão
-social ou do nome fantasia, com resultados paginados.
+Permite consultar empresas pelo CNPJ, pesquisar por início da razão
+social, nome fantasia ou nome do sócio e realizar buscas por termos
+com Manticore Search opcional.
 
 ## Requisitos
 
@@ -94,7 +95,8 @@ em container Docker.
 | Indicador | Valor observado |
 |---|---:|
 | Estabelecimentos — registros estimados | 64,6 milhões |
-| Empresas — registros estimados | 62,1 milhões |
+| Empresas — contagem exata após correção de uma duplicata | 69.523.303 |
+| Documentos no índice completo do Manticore | 69.523.303 |
 | Índices no catálogo | 14 |
 | Criação dos 11 índices iniciais | 11m02,542s |
 | Índice de razão social | 5m09,641s |
@@ -129,8 +131,9 @@ curl -sS --get 'http://localhost:8080/v1/companies' \
   --data-urlencode 'page_size=5'
 ```
 
-As buscas por nome utilizam prefixo: `SANTELLO` encontra nomes que
-começam com esse texto.
+As buscas MySQL utilizam prefixo. A busca ampla com Manticore encontra
+termos em qualquer posição dos nomes. Todas permitem até 1000 resultados;
+acima disso, retornam HTTP 422, solicitando refinar a busca.
 
 Veja os [endpoints e exemplos de utilização](docs/endpoints.md).
 
@@ -144,8 +147,8 @@ go test ./...
 
 A API permite habilitar a conexão com o Manticore Search.
 A busca ampla está disponível em `/v1/search`, sobre os documentos
-já indexados. A carga completa e a troca de publicação ainda estão
-em implementação.
+indexados. A API oferece carga completa, retomada, seleção da tabela
+ativa e remoção de tabelas antigas pela CLI.
 
 Ambiente validado com Manticore Search 29.9.0 em Docker.
 
@@ -155,6 +158,7 @@ Para habilitar, acrescente às variáveis de ambiente:
 CNPJ_API_MANTICORE_ENABLED=true
 CNPJ_API_MANTICORE_HOST=127.0.0.1
 CNPJ_API_MANTICORE_PORT=9306
+CNPJ_API_MANTICORE_TABLE=cnpj_companies_2026_08
 CNPJ_API_MANTICORE_CONNECT_TIMEOUT=5s
 ```
 
@@ -191,7 +195,9 @@ de uma empresa. O MySQL é utilizado somente para leitura.
 Repetir a carga atualiza os documentos com os mesmos identificadores,
 sem duplicá-los. O comando não remove documentos de publicações anteriores.
 
-Nesta etapa, o índice é parcial. A busca HTTP está disponível sobre essa amostra. O procedimento de substituição completa da base ainda está em implementação.
+Uma carga limitada disponibiliza somente parte da base para busca.
+Para consultar a publicação inteira, execute a carga completa e
+configure a tabela ativa após validar o resultado.
 
 Na amostra de 20/10/2026, com Manticore 29.9.0 e MySQL 8.4.11,
 mil empresas foram processadas em 1,053s; a execução completa com
@@ -307,3 +313,28 @@ instância da API com configuração diferente nem uma carga em andamento.
 
 Não remova uma tabela enquanto ela estiver recebendo dados.
 Mantenha a publicação anterior até concluir a validação da nova.
+
+### Carga completa observada — publicação 2026/08
+
+Ambiente: MySQL 8.4.11 e Manticore Search 29.9.0 em Docker,
+em máquina com aproximadamente 7,7 GiB de RAM.
+
+A carga foi concluída com retomadas e lotes de 1000 empresas.
+As contagens finais foram iguais: 69.523.303 empresas no MySQL
+e 69.523.303 documentos no Manticore.
+
+Na última execução, foram processadas 61.455.303 empresas:
+
+| Medição da última execução | Tempo |
+|---|---:|
+| Rotina de indexação, conforme log | 1h44m12,977s |
+| Processo completo, conforme `time` | 1h53m09,754s |
+
+Esses tempos não representam a carga inteira: 8.068.000 empresas
+já haviam sido processadas em execuções anteriores.
+
+Durante a carga, o acesso à tabela de empresas foi ajustado para usar
+o índice de CNPJ básico por intervalo. Também foi removido um registro
+duplicado com nome vazio, preservando o registro preenchido.
+
+Os números são referências observadas, não garantias de desempenho.
