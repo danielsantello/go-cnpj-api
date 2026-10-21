@@ -24,6 +24,9 @@ Os projetos são independentes. A API também pode consultar uma base
 carregada por outras ferramentas, desde que ela siga o formato suportado,
 incluindo tabelas, colunas e metadados esperados.
 
+Consulte o [formato da base e dicionário de dados](https://github.com/danielsantello/go-cnpj-loader/blob/main/docs/referencia/formato-da-base.md)
+para os campos, tipos, relacionamentos e regras de importação do formato 1.
+
 Na inicialização, a API verifica os metadados e a compatibilidade do
 schema. Os índices necessários são criados por um comando da própria API.
 
