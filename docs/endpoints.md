@@ -85,7 +85,7 @@ curl -sS --get 'http://localhost:8080/v1/companies' \
   --data-urlencode 'page_size=5'
 ```
 
-Cada item contém `cnpj` e `corporate_name`. O CNPJ retornado é
+Cada item contém `cnpj`, `corporate_name`, `municipality`, `state` e `registration_status`. O CNPJ retornado é
 preferencialmente o da matriz; na ausência dela, o menor CNPJ
 disponível para a empresa.
 
@@ -105,10 +105,39 @@ curl -sS --get 'http://localhost:8080/v1/establishments' \
   --data-urlencode 'page_size=5'
 ```
 
-Cada item contém `cnpj`, `trade_name` e `corporate_name`.
+Cada item contém `cnpj`, `trade_name`, `corporate_name`, `municipality`, `state` e `registration_status`.
 
 Os resultados ficam em `data.establishments.items`, ordenados
 por nome fantasia e CNPJ.
+
+## Município, UF e situação cadastral nos resumos
+
+As buscas por razão social, nome fantasia, sócio e termos incluem
+estes campos em cada item:
+
+| Campo | Conteúdo |
+|---|---|
+| `municipality` | Objeto com `code` e `description`, ou `null` |
+| `state` | Sigla da UF, ou `null` |
+| `registration_status` | Objeto com `code` e `description`, ou `null` |
+
+Os dados correspondem ao estabelecimento do CNPJ completo retornado.
+Uma descrição indisponível pode ser `null`, mesmo quando há um código.
+
+Nas buscas por razão social e sócio, o estabelecimento escolhido é
+preferencialmente a matriz; na ausência dela, o de menor CNPJ.
+Na busca por nome fantasia, os dados são do estabelecimento encontrado.
+
+Na busca por termos, o CNPJ é o armazenado no documento do Manticore.
+Os novos campos são consultados no MySQL em um único lote com os
+CNPJs da página, preservando itens, ordem, correspondências e paginação.
+Páginas vazias não executam essa consulta adicional.
+
+Se um CNPJ não for encontrado no MySQL, o item é mantido com os novos
+campos nulos. Uma falha na consulta de enriquecimento retorna HTTP 500.
+MySQL e Manticore devem apontar para a mesma publicação.
+
+Essa melhoria não exige alterar a estrutura nem recarregar o Manticore.
 
 ## Parâmetros das buscas por nome
 
@@ -217,6 +246,9 @@ Os resultados ficam em `data.partners.items`. Cada item contém:
 - `document`: documento conforme a base, podendo ser nulo.
 - `cnpj`: CNPJ da empresa vinculada, preferencialmente o da matriz.
 - `corporate_name`: razão social da empresa.
+- `municipality`: município do estabelecimento retornado, com código e descrição, ou nulo.
+- `state`: UF do estabelecimento retornado, ou nula.
+- `registration_status`: situação cadastral do estabelecimento retornado, com código e descrição, ou nula.
 
 Um sócio pode aparecer vinculado a várias empresas. O documento
 mascarado ajuda a distinguir homônimos, mas não garante identidade.
@@ -257,8 +289,7 @@ por qualquer trecho dentro de uma palavra.
 Pontuação é tratada como separador; operadores de consulta do Manticore
 não são expostos. Texto composto somente por pontuação retorna lista vazia.
 
-Cada empresa aparece uma vez, com `basic_cnpj`, `cnpj`, `corporate_name`
-e `matched_fields`.
+Cada empresa aparece uma vez, com `basic_cnpj`, `cnpj`, `corporate_name`, `matched_fields`, `municipality`, `state` e `registration_status`.
 
 O campo `matched_fields` indica onde pelo menos um dos termos foi
 encontrado: `corporate_name` (razão social), `trade_names` (nomes fantasia)
@@ -296,3 +327,34 @@ Na busca por sócio, o limite também se aplica quando o documento
 
 Essa regra não altera a consulta direta por CNPJ nem a listagem
 de estabelecimentos incluída nos detalhes de uma empresa.
+
+## Medição local do enriquecimento
+
+Medição realizada em 22/10/2026, com a consulta `SANTELLO`, página 1,
+MySQL 8.4.11 e Manticore 29.9.0 locais, na publicação 2026/08.
+
+Cada combinação teve um aquecimento e cinco requisições sequenciais.
+Os valores abaixo são medianas da latência HTTP, em milissegundos.
+Todas as requisições retornaram HTTP 200.
+
+| Busca | `page_size` | Antes | Depois | Diferença |
+|---|---:|---:|---:|---:|
+| Razão social | 20 | 3,567 | 3,319 | -0,248 |
+| Razão social | 100 | 3,371 | 3,156 | -0,215 |
+| Nome fantasia | 20 | 3,048 | 2,711 | -0,337 |
+| Nome fantasia | 100 | 2,610 | 2,746 | +0,136 |
+| Sócios | 20 | 2,933 | 2,663 | -0,270 |
+| Sócios | 100 | 2,967 | 2,599 | -0,368 |
+| Termos | 20 | 6,415 | 8,177 | +1,762 |
+| Termos | 100 | 8,874 | 13,476 | +4,602 |
+
+A consulta retornou 30 empresas, 12 estabelecimentos, um vínculo de
+sócio e 321 empresas na busca por termos. O tamanho solicitado não
+representa necessariamente a quantidade de itens retornados.
+
+As pequenas diferenças nas buscas MySQL não comprovam ganho de
+desempenho. Na busca por termos, o acréscimo observado foi de
+aproximadamente 1,8 ms para 20 itens e 4,6 ms para 100 itens.
+
+Esta amostra não mede concorrência, carga sustentada nem o tempo
+isolado das consultas SQL.

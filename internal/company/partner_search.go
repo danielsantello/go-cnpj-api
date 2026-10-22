@@ -22,10 +22,13 @@ type PartnerSearchOptions struct {
 }
 
 type PartnerSummary struct {
-	Name          string  `json:"name"`
-	Document      *string `json:"document"`
-	CNPJ          string  `json:"cnpj"`
-	CorporateName string  `json:"corporate_name"`
+	Name               string           `json:"name"`
+	Document           *string          `json:"document"`
+	CNPJ               string           `json:"cnpj"`
+	CorporateName      string           `json:"corporate_name"`
+	Municipality       *CodeDescription `json:"municipality"`
+	State              *string          `json:"state"`
+	RegistrationStatus *CodeDescription `json:"registration_status"`
 }
 
 type PartnerSearchResult struct {

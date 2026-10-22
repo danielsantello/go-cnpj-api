@@ -74,6 +74,19 @@ func TestCompanyRepositorySearchByTradeNameIntegration(t *testing.T) {
 
 	repository := NewCompanyRepository(mysqlDatabase)
 
+	details, err := repository.FindByCNPJ(
+		ctx,
+		expected.CNPJ,
+		company.FindOptions{},
+	)
+	if err != nil {
+		t.Fatalf("find expected establishment details: %v", err)
+	}
+
+	expected.Municipality = details.Establishment.Address.Municipality
+	expected.State = details.Establishment.Address.State
+	expected.RegistrationStatus = details.Establishment.Registration.Status
+
 	result, err := repository.SearchByTradeName(
 		ctx,
 		company.SearchOptions{
@@ -90,7 +103,7 @@ func TestCompanyRepositorySearchByTradeNameIntegration(t *testing.T) {
 		t.Fatal("expected establishments, got empty collection")
 	}
 
-	if result.Items[0] != expected {
+	if !reflect.DeepEqual(result.Items[0], expected) {
 		t.Fatalf(
 			"expected first establishment %#v, got %#v",
 			expected,

@@ -17,9 +17,12 @@ var (
 )
 
 type EstablishmentSummary struct {
-	CNPJ          string `json:"cnpj"`
-	TradeName     string `json:"trade_name"`
-	CorporateName string `json:"corporate_name"`
+	CNPJ               string           `json:"cnpj"`
+	TradeName          string           `json:"trade_name"`
+	CorporateName      string           `json:"corporate_name"`
+	Municipality       *CodeDescription `json:"municipality"`
+	State              *string          `json:"state"`
+	RegistrationStatus *CodeDescription `json:"registration_status"`
 }
 
 type EstablishmentSearchResult struct {

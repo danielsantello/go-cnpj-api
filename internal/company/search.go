@@ -23,8 +23,11 @@ type SearchOptions struct {
 }
 
 type Summary struct {
-	CNPJ          string `json:"cnpj"`
-	CorporateName string `json:"corporate_name"`
+	CNPJ               string           `json:"cnpj"`
+	CorporateName      string           `json:"corporate_name"`
+	Municipality       *CodeDescription `json:"municipality"`
+	State              *string          `json:"state"`
+	RegistrationStatus *CodeDescription `json:"registration_status"`
 }
 
 type SearchResult struct {

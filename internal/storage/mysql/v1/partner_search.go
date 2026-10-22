@@ -23,16 +23,34 @@ const partnerSearchColumns = `
 	SELECT
 		partner.partner_name,
 		partner.partner_document,
-		(
-			SELECT establishment.cnpj
-			FROM establishments AS establishment
-			WHERE establishment.cnpj_root = partner.cnpj_root
-			ORDER BY
-				establishment.head_office_branch_indicator = '1' DESC,
-				establishment.cnpj
-			LIMIT 1
-		),
-		company.legal_name
+		establishment.cnpj,
+		company.legal_name,
+		establishment.municipality_code,
+		municipality.name,
+		establishment.state_code,
+		establishment.registration_status_code
+`
+
+const partnerSearchResultsFrom = `
+	FROM partners AS partner
+	INNER JOIN companies AS company
+		ON company.cnpj_root = partner.cnpj_root
+	INNER JOIN LATERAL (
+		SELECT
+			candidate.cnpj,
+			candidate.municipality_code,
+			candidate.state_code,
+			candidate.registration_status_code
+		FROM establishments AS candidate
+		WHERE candidate.cnpj_root = partner.cnpj_root
+		ORDER BY
+			candidate.head_office_branch_indicator = '1' DESC,
+			candidate.cnpj
+		LIMIT 1
+	) AS establishment ON TRUE
+	LEFT JOIN municipalities AS municipality
+		ON municipality.code = establishment.municipality_code
+	WHERE TRUE
 `
 
 func partnerSearchFilter(
@@ -84,7 +102,7 @@ func (repository *CompanyRepository) SearchByPartnerName(
 
 	rows, err := repository.db.QueryContext(
 		ctx,
-		partnerSearchColumns+partnerSearchFrom+filter+`
+		partnerSearchColumns+partnerSearchResultsFrom+filter+`
 			ORDER BY
 				partner.partner_name,
 				partner.partner_document,
@@ -106,12 +124,20 @@ func (repository *CompanyRepository) SearchByPartnerName(
 	for rows.Next() {
 		var item company.PartnerSummary
 		var document sql.NullString
+		var municipalityCode sql.NullString
+		var municipalityDescription sql.NullString
+		var state sql.NullString
+		var statusCode sql.NullString
 
 		if err := rows.Scan(
 			&item.Name,
 			&document,
 			&item.CNPJ,
 			&item.CorporateName,
+			&municipalityCode,
+			&municipalityDescription,
+			&state,
+			&statusCode,
 		); err != nil {
 			return company.PartnerSearchResult{}, fmt.Errorf(
 				"scan partner summary: %w", err,
@@ -119,6 +145,15 @@ func (repository *CompanyRepository) SearchByPartnerName(
 		}
 
 		item.Document = nullableString(document)
+		item.Municipality = codeDescription(
+			nullableString(municipalityCode),
+			nullableString(municipalityDescription),
+		)
+		item.State = nullableString(state)
+		item.RegistrationStatus = registrationStatus(
+			nullableString(statusCode),
+		)
+
 		items = append(items, item)
 	}
 

@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -25,23 +26,29 @@ const countCompaniesByCorporateNameQuery = `
 
 const searchCompaniesByCorporateNameQuery = `
 	SELECT
-		(
-			SELECT establishment.cnpj
-			FROM establishments AS establishment
-			WHERE establishment.cnpj_root = company.cnpj_root
-			ORDER BY
-				establishment.head_office_branch_indicator = '1' DESC,
-				establishment.cnpj
-			LIMIT 1
-		) AS cnpj,
-		company.legal_name
+		establishment.cnpj,
+		company.legal_name,
+		establishment.municipality_code,
+		municipality.name,
+		establishment.state_code,
+		establishment.registration_status_code
 	FROM companies AS company
+	INNER JOIN LATERAL (
+		SELECT
+			candidate.cnpj,
+			candidate.municipality_code,
+			candidate.state_code,
+			candidate.registration_status_code
+		FROM establishments AS candidate
+		WHERE candidate.cnpj_root = company.cnpj_root
+		ORDER BY
+			candidate.head_office_branch_indicator = '1' DESC,
+			candidate.cnpj
+		LIMIT 1
+	) AS establishment ON TRUE
+	LEFT JOIN municipalities AS municipality
+		ON municipality.code = establishment.municipality_code
 	WHERE company.legal_name LIKE ? ESCAPE '!'
-		AND EXISTS (
-			SELECT 1
-			FROM establishments AS establishment
-			WHERE establishment.cnpj_root = company.cnpj_root
-		)
 	ORDER BY
 		company.legal_name,
 		company.cnpj_root
@@ -94,16 +101,33 @@ func (repository *CompanyRepository) SearchByCorporateName(
 
 	for rows.Next() {
 		var item company.Summary
+		var municipalityCode sql.NullString
+		var municipalityDescription sql.NullString
+		var state sql.NullString
+		var statusCode sql.NullString
 
 		if err := rows.Scan(
 			&item.CNPJ,
 			&item.CorporateName,
+			&municipalityCode,
+			&municipalityDescription,
+			&state,
+			&statusCode,
 		); err != nil {
 			return company.SearchResult{}, fmt.Errorf(
 				"scan company summary: %w",
 				err,
 			)
 		}
+
+		item.Municipality = codeDescription(
+			nullableString(municipalityCode),
+			nullableString(municipalityDescription),
+		)
+		item.State = nullableString(state)
+		item.RegistrationStatus = registrationStatus(
+			nullableString(statusCode),
+		)
 
 		items = append(items, item)
 	}

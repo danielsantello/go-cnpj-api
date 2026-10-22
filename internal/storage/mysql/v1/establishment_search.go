@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"github.com/danielsantello/go-cnpj-api/internal/company"
@@ -23,10 +24,16 @@ const searchEstablishmentsByTradeNameQuery = `
 	SELECT
 		establishment.cnpj,
 		establishment.trade_name,
-		company.legal_name
+		company.legal_name,
+		establishment.municipality_code,
+		municipality.name,
+		establishment.state_code,
+		establishment.registration_status_code
 	FROM establishments AS establishment
 	INNER JOIN companies AS company
 		ON company.cnpj_root = establishment.cnpj_root
+	LEFT JOIN municipalities AS municipality
+		ON municipality.code = establishment.municipality_code
 	WHERE establishment.trade_name LIKE ? ESCAPE '!'
 	ORDER BY
 		establishment.trade_name,
@@ -80,17 +87,34 @@ func (repository *CompanyRepository) SearchByTradeName(
 
 	for rows.Next() {
 		var item company.EstablishmentSummary
+		var municipalityCode sql.NullString
+		var municipalityDescription sql.NullString
+		var state sql.NullString
+		var statusCode sql.NullString
 
 		if err := rows.Scan(
 			&item.CNPJ,
 			&item.TradeName,
 			&item.CorporateName,
+			&municipalityCode,
+			&municipalityDescription,
+			&state,
+			&statusCode,
 		); err != nil {
 			return company.EstablishmentSearchResult{}, fmt.Errorf(
 				"scan establishment summary: %w",
 				err,
 			)
 		}
+
+		item.Municipality = codeDescription(
+			nullableString(municipalityCode),
+			nullableString(municipalityDescription),
+		)
+		item.State = nullableString(state)
+		item.RegistrationStatus = registrationStatus(
+			nullableString(statusCode),
+		)
 
 		items = append(items, item)
 	}

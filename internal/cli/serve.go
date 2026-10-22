@@ -65,7 +65,18 @@ func serve() error {
 			return fmt.Errorf("initialize Manticore search repository: %w", err)
 		}
 
-		searchRepository = repository
+		enrichmentRepository, err := mysqlstorage.NewSearchEnrichmentRepository(
+			mysqlDatabase,
+			formatVersion,
+		)
+		if err != nil {
+			return fmt.Errorf("initialize search enrichment repository: %w", err)
+		}
+
+		searchRepository = search.NewEnrichedRepository(
+			repository,
+			enrichmentRepository,
+		)
 
 		slog.Info(
 			"Manticore search table configured",

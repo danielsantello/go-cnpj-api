@@ -26,10 +26,13 @@ type Options struct {
 }
 
 type Item struct {
-	BasicCNPJ     string   `json:"basic_cnpj"`
-	CNPJ          string   `json:"cnpj"`
-	CorporateName string   `json:"corporate_name"`
-	MatchedFields []string `json:"matched_fields"`
+	BasicCNPJ          string                   `json:"basic_cnpj"`
+	CNPJ               string                   `json:"cnpj"`
+	CorporateName      string                   `json:"corporate_name"`
+	MatchedFields      []string                 `json:"matched_fields"`
+	Municipality       *company.CodeDescription `json:"municipality"`
+	State              *string                  `json:"state"`
+	RegistrationStatus *company.CodeDescription `json:"registration_status"`
 }
 
 type Result struct {

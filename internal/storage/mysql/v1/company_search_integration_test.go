@@ -3,6 +3,7 @@ package v1
 import (
 	"context"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -128,6 +129,36 @@ func TestCompanyRepositorySearchByCorporateNameIntegration(
 	}
 
 	for index, item := range result.Items {
+		details, err := repository.FindByCNPJ(
+			ctx,
+			item.CNPJ,
+			company.FindOptions{},
+		)
+		if err != nil {
+			t.Fatalf("find details at index %d: %v", index, err)
+		}
+
+		if !reflect.DeepEqual(
+			item.Municipality,
+			details.Establishment.Address.Municipality,
+		) {
+			t.Fatalf("municipality differs from CNPJ details at index %d", index)
+		}
+
+		if !reflect.DeepEqual(
+			item.State,
+			details.Establishment.Address.State,
+		) {
+			t.Fatalf("state differs from CNPJ details at index %d", index)
+		}
+
+		if !reflect.DeepEqual(
+			item.RegistrationStatus,
+			details.Establishment.Registration.Status,
+		) {
+			t.Fatalf("registration status differs from CNPJ details at index %d", index)
+		}
+
 		if len(item.CNPJ) != 14 {
 			t.Fatalf(
 				"expected 14-character CNPJ at index %d, got %q",
