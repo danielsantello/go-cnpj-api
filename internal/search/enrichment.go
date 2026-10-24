@@ -7,6 +7,7 @@ import (
 )
 
 type EstablishmentSummary struct {
+	TradeName          *string
 	Municipality       *company.CodeDescription
 	State              *string
 	RegistrationStatus *company.CodeDescription

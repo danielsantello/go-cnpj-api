@@ -60,6 +60,7 @@ func (repository *enrichedRepository) Search(
 
 	for index := range items {
 		summary := summaries[items[index].CNPJ]
+		items[index].TradeName = summary.TradeName
 		items[index].Municipality = summary.Municipality
 		items[index].State = summary.State
 		items[index].RegistrationStatus = summary.RegistrationStatus

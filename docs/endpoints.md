@@ -92,9 +92,20 @@ curl -sS --get 'http://localhost:8080/v1/companies' \
   --data-urlencode 'page_size=5'
 ```
 
-Cada item contém `cnpj`, `corporate_name`, `municipality`, `state` e `registration_status`. O CNPJ retornado é
-preferencialmente o da matriz; na ausência dela, o menor CNPJ
-disponível para a empresa.
+Cada item contém `cnpj`, `corporate_name`, `trade_name`, `municipality`,
+`state` e `registration_status`. O CNPJ retornado é preferencialmente
+o da matriz; na ausência dela, o menor CNPJ disponível para a empresa.
+
+`trade_name` é o nome fantasia do estabelecimento do CNPJ completo
+retornado. O campo está sempre presente: contém uma string ou `null`
+quando o valor é nulo na origem. Uma string vazia é preservada.
+
+No caminho Manticore, o campo é obtido no mesmo lote de enriquecimento
+no MySQL e também retorna `null` quando o CNPJ não é encontrado.
+No fallback MySQL, é lido diretamente do estabelecimento selecionado.
+
+A inclusão do campo não altera os campos pesquisados, a ordenação,
+a paginação ou as regras de fallback. Não requer recarga do Manticore.
 
 Os resultados ficam em `data.companies.items`. No MySQL, são ordenados por
 razão social e CNPJ básico; no Manticore, pelo ID do documento da empresa.

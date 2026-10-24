@@ -28,6 +28,7 @@ const searchCompaniesByCorporateNameQuery = `
 	SELECT
 		establishment.cnpj,
 		company.legal_name,
+		establishment.trade_name,
 		establishment.municipality_code,
 		municipality.name,
 		establishment.state_code,
@@ -36,6 +37,7 @@ const searchCompaniesByCorporateNameQuery = `
 	INNER JOIN LATERAL (
 		SELECT
 			candidate.cnpj,
+			candidate.trade_name,
 			candidate.municipality_code,
 			candidate.state_code,
 			candidate.registration_status_code
@@ -101,6 +103,7 @@ func (repository *CompanyRepository) SearchByCorporateName(
 
 	for rows.Next() {
 		var item company.Summary
+		var tradeName sql.NullString
 		var municipalityCode sql.NullString
 		var municipalityDescription sql.NullString
 		var state sql.NullString
@@ -109,6 +112,7 @@ func (repository *CompanyRepository) SearchByCorporateName(
 		if err := rows.Scan(
 			&item.CNPJ,
 			&item.CorporateName,
+			&tradeName,
 			&municipalityCode,
 			&municipalityDescription,
 			&state,
@@ -120,6 +124,7 @@ func (repository *CompanyRepository) SearchByCorporateName(
 			)
 		}
 
+		item.TradeName = nullableString(tradeName)
 		item.Municipality = codeDescription(
 			nullableString(municipalityCode),
 			nullableString(municipalityDescription),

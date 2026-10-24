@@ -139,6 +139,16 @@ func TestCompanyRepositorySearchByCorporateNameIntegration(
 		}
 
 		if !reflect.DeepEqual(
+			item.TradeName,
+			details.Establishment.TradeName,
+		) {
+			t.Fatalf(
+				"trade name differs from CNPJ details at index %d",
+				index,
+			)
+		}
+
+		if !reflect.DeepEqual(
 			item.Municipality,
 			details.Establishment.Address.Municipality,
 		) {

@@ -101,6 +101,7 @@ func TestFindEstablishmentSummariesIntegration(t *testing.T) {
 		}
 
 		expected[cnpj] = search.EstablishmentSummary{
+			TradeName:          details.Establishment.TradeName,
 			Municipality:       details.Establishment.Address.Municipality,
 			State:              details.Establishment.Address.State,
 			RegistrationStatus: details.Establishment.Registration.Status,

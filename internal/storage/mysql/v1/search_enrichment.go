@@ -36,6 +36,7 @@ func (repository *CompanyRepository) FindEstablishmentSummaries(
 	rows, err := repository.db.QueryContext(ctx, `
 		SELECT
 			establishment.cnpj,
+			establishment.trade_name,
 			establishment.municipality_code,
 			municipality.name,
 			establishment.state_code,
@@ -53,6 +54,7 @@ func (repository *CompanyRepository) FindEstablishmentSummaries(
 
 	for rows.Next() {
 		var cnpj string
+		var tradeName sql.NullString
 		var municipalityCode sql.NullString
 		var municipalityDescription sql.NullString
 		var state sql.NullString
@@ -60,6 +62,7 @@ func (repository *CompanyRepository) FindEstablishmentSummaries(
 
 		if err := rows.Scan(
 			&cnpj,
+			&tradeName,
 			&municipalityCode,
 			&municipalityDescription,
 			&state,
@@ -76,6 +79,7 @@ func (repository *CompanyRepository) FindEstablishmentSummaries(
 		}
 
 		summaries[cnpj] = search.EstablishmentSummary{
+			TradeName: nullableString(tradeName),
 			Municipality: codeDescription(
 				nullableString(municipalityCode),
 				nullableString(municipalityDescription),

@@ -33,6 +33,7 @@ type Item struct {
 	Municipality       *company.CodeDescription `json:"municipality"`
 	State              *string                  `json:"state"`
 	RegistrationStatus *company.CodeDescription `json:"registration_status"`
+	TradeName          *string                  `json:"-"`
 }
 
 type Result struct {

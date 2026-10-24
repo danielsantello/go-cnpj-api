@@ -226,3 +226,68 @@ func TestCompanySearchHandlerRejectsInvalidPagination(t *testing.T) {
 		)
 	}
 }
+
+func TestCompanySearchHandlerTradeNameJSON(t *testing.T) {
+	name := "FANTASIA FILIAL"
+	empty := ""
+
+	tests := []struct {
+		name     string
+		value    *string
+		expected string
+	}{
+		{"filled", &name, `"FANTASIA FILIAL"`},
+		{"empty", &empty, `""`},
+		{"null", nil, `null`},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			searcher := &companySearcherStub{
+				result: company.SearchResult{
+					Items: []company.Summary{
+						{
+							CNPJ:      "12345678000200",
+							TradeName: test.value,
+						},
+					},
+					Pagination: company.NewPagination(1, 20, 1),
+				},
+			}
+
+			request := httptest.NewRequest(
+				http.MethodGet,
+				"/v1/companies?name=EMPRESA",
+				nil,
+			)
+			response := httptest.NewRecorder()
+
+			newCompanySearchHandler(searcher).ServeHTTP(response, request)
+
+			if response.Code != http.StatusOK {
+				t.Fatalf("unexpected status: %d", response.Code)
+			}
+
+			var payload struct {
+				Data struct {
+					Companies struct {
+						Items []map[string]json.RawMessage `json:"items"`
+					} `json:"companies"`
+				} `json:"data"`
+			}
+
+			if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+				t.Fatal(err)
+			}
+
+			if len(payload.Data.Companies.Items) != 1 {
+				t.Fatal("expected one company")
+			}
+
+			got := string(payload.Data.Companies.Items[0]["trade_name"])
+			if got != test.expected {
+				t.Fatalf("trade_name: got %s, want %s", got, test.expected)
+			}
+		})
+	}
+}

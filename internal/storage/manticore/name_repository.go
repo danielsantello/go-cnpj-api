@@ -75,6 +75,7 @@ func (repository *NameRepository) SearchByCorporateName(
 		items = append(items, company.Summary{
 			CNPJ:               item.CNPJ,
 			CorporateName:      item.CorporateName,
+			TradeName:          item.TradeName,
 			Municipality:       item.Municipality,
 			State:              item.State,
 			RegistrationStatus: item.RegistrationStatus,
