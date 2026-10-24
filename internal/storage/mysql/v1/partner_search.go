@@ -56,16 +56,19 @@ const partnerSearchResultsFrom = `
 func partnerSearchFilter(
 	options company.PartnerSearchOptions,
 ) (string, []any) {
+	filter := `
+		AND partner.partner_name LIKE ? ESCAPE '!'
+	`
+	arguments := []any{corporateNamePrefix(options.Name)}
+
 	if options.Document != nil {
-		return `
-			AND partner.partner_name = ?
+		filter += `
 			AND partner.partner_document = ?
-		`, []any{options.Name, *options.Document}
+		`
+		arguments = append(arguments, *options.Document)
 	}
 
-	return `
-		AND partner.partner_name LIKE ? ESCAPE '!'
-	`, []any{corporateNamePrefix(options.Name)}
+	return filter, arguments
 }
 
 func (repository *CompanyRepository) SearchByPartnerName(

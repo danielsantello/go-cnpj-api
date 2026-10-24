@@ -34,3 +34,12 @@ func fieldSearchExpression(field string, value string) string {
 
 	return "@" + field + " (" + strings.Join(quoted, " | ") + ")"
 }
+
+func corporateNameSearchExpression(value string) string {
+	expression := searchExpression(value)
+	if expression == "" {
+		return ""
+	}
+
+	return "@corporate_name (" + expression + ")"
+}

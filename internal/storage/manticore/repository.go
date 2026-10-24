@@ -38,6 +38,20 @@ func (repository *Repository) Search(
 	ctx context.Context,
 	options search.Options,
 ) (search.Result, error) {
+	return repository.searchWithExpression(
+		ctx,
+		options,
+		searchExpression(options.Name),
+		true,
+	)
+}
+
+func (repository *Repository) searchWithExpression(
+	ctx context.Context,
+	options search.Options,
+	expression string,
+	includeMatchedFields bool,
+) (search.Result, error) {
 	result := search.Result{
 		Items: []search.Item{},
 		Pagination: company.NewPagination(
@@ -45,7 +59,6 @@ func (repository *Repository) Search(
 		),
 	}
 
-	expression := searchExpression(options.Name)
 	if expression == "" {
 		return result, nil
 	}
@@ -110,10 +123,12 @@ func (repository *Repository) Search(
 		return search.Result{}, fmt.Errorf("close Manticore results: %w", err)
 	}
 
-	if err := repository.fillMatchedFields(
-		ctx, options.Name, ids, result.Items,
-	); err != nil {
-		return search.Result{}, err
+	if includeMatchedFields {
+		if err := repository.fillMatchedFields(
+			ctx, options.Name, ids, result.Items,
+		); err != nil {
+			return search.Result{}, err
+		}
 	}
 
 	return result, nil

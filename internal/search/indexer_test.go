@@ -39,7 +39,8 @@ type indexStub struct {
 	err       error
 }
 
-func (index *indexStub) EnsureTable(context.Context) error {
+func (index *indexStub) RecreateTable(context.Context) error {
+	index.batches = nil
 	return nil
 }
 
@@ -74,7 +75,7 @@ func TestBuildIndexRespectsLimitAndCursor(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if result.Processed != 3 || result.LastBasicCNPJ != "00000003" {
+	if result.Processed != 3 {
 		t.Fatalf("unexpected result: %#v", result)
 	}
 	if !reflect.DeepEqual(source.cursors, []string{"", "00000002"}) ||
@@ -103,7 +104,7 @@ func TestBuildIndexPreservesProgressOnWriteFailure(t *testing.T) {
 	if !errors.Is(err, expected) {
 		t.Fatalf("expected write error, got %v", err)
 	}
-	if result.Processed != 2 || result.LastBasicCNPJ != "00000002" ||
+	if result.Processed != 2 ||
 		len(progress) != 1 {
 		t.Fatalf("progress advanced past failed batch: %#v", result)
 	}
@@ -163,7 +164,7 @@ func TestBuildIndexProcessesFullSource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Processed != 4 || result.LastBasicCNPJ != "00000004" {
+	if result.Processed != 4 {
 		t.Fatalf("unexpected full indexing result: %#v", result)
 	}
 	if len(index.batches) != 2 ||
@@ -186,27 +187,40 @@ func TestBuildIndexRejectsFullSourceWithLimit(t *testing.T) {
 	}
 }
 
-func TestBuildIndexResumesAfterCursor(t *testing.T) {
-	source := &sourceStub{documents: testDocuments()}
-	index := &indexStub{}
-
-	result, err := BuildIndex(
-		context.Background(), source, index,
-		IndexOptions{
-			BatchSize:      2,
-			All:            true,
-			AfterBasicCNPJ: "00000002",
-		},
-		nil,
-	)
+func TestBuildIndexRestartsFromBeginningAfterFailure(t *testing.T) {
+	documents := []Document{
+		{ID: 999, BasicCNPJ: "00000001", CNPJ: "00000001000100"},
+		{ID: 888, BasicCNPJ: "12ABC345", CNPJ: "12ABC345000190"},
+		{BasicCNPJ: "ZZZZZZZZ", CNPJ: "ZZZZZZZZ000100"},
+	}
+	source := &sourceStub{documents: documents}
+	writeError := errors.New("write failed")
+	index := &indexStub{failBatch: 2, err: writeError}
+	options := IndexOptions{BatchSize: 2, All: true}
+	if _, err := BuildIndex(context.Background(), source, index, options, nil); !errors.Is(err, writeError) {
+		t.Fatalf("expected first load to fail: %v", err)
+	}
+	index.failBatch = 0
+	source.cursors = nil
+	result, err := BuildIndex(context.Background(), source, index, options, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Processed != 2 || result.LastBasicCNPJ != "00000004" {
-		t.Fatalf("unexpected resumed result: %#v", result)
+	if result.Processed != 3 || source.cursors[0] != "" {
+		t.Fatalf("new load must start from zero: %#v, cursors=%v", result, source.cursors)
 	}
-	if len(index.batches) != 1 ||
-		index.batches[0][0].BasicCNPJ != "00000003" {
-		t.Fatalf("unexpected resumed batches: %#v", index.batches)
+	position := 0
+	for _, batch := range index.batches {
+		for _, actual := range batch {
+			expected := documents[position]
+			expected.ID = uint64(position + 1)
+			if !reflect.DeepEqual(actual, expected) {
+				t.Fatalf("IDs or textual CNPJs changed: got %#v, want %#v", actual, expected)
+			}
+			position++
+		}
+	}
+	if position != len(documents) {
+		t.Fatalf("stale or missing documents: %d", position)
 	}
 }

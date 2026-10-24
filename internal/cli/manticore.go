@@ -55,3 +55,43 @@ func closeManticore(manticore *sql.DB) {
 		slog.Error("failed to close Manticore pool", "error", err)
 	}
 }
+
+func initializeManticoreForServer(
+	configuration config.Config,
+) (*sql.DB, error) {
+	if !configuration.ManticoreEnabled {
+		return nil, nil
+	}
+
+	manticore, err := database.OpenManticore(database.ManticoreConfig{
+		Host:           configuration.ManticoreHost,
+		Port:           configuration.ManticorePort,
+		ConnectTimeout: configuration.ManticoreConnectTimeout,
+		IOTimeout:      configuration.ManticoreConnectTimeout,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		configuration.ManticoreConnectTimeout,
+	)
+	defer cancel()
+
+	if err := manticore.PingContext(ctx); err != nil {
+		slog.Warn(
+			"Manticore unavailable at startup; name searches can fall back to MySQL",
+			"error", err,
+		)
+		// Keep the pool open so future requests can reconnect.
+		return manticore, nil
+	}
+
+	slog.Info(
+		"Manticore connection established",
+		"host", configuration.ManticoreHost,
+		"port", configuration.ManticorePort,
+	)
+	return manticore, nil
+}

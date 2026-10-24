@@ -9,6 +9,7 @@ Endereço padrão: `http://localhost:8080`.
 Verifica a disponibilidade da API e a conexão com o MySQL.
 
 ```bash
+clear
 curl -i 'http://localhost:8080/health'
 ```
 
@@ -35,7 +36,9 @@ O campo `search` representa o Manticore Search, uma integração opcional.
 Quando desabilitado, retorna `disabled`; quando habilitado, retorna
 `available` ou `unavailable`, conforme a conexão. Se qualquer serviço
 habilitado estiver indisponível, o endpoint retorna HTTP 503 com
-status `unhealthy`. As buscas por prefixo utilizam o MySQL.
+status `unhealthy`. As buscas específicas podem continuar pelo MySQL mesmo
+com o health indicando indisponibilidade do Manticore. O health verifica a
+conexão, não a existência nem a completude das tabelas de busca.
 
 ## Consulta por CNPJ
 
@@ -45,12 +48,14 @@ Retorna dados da empresa, do estabelecimento consultado, do Simples
 Nacional e MEI, quando disponíveis, e dos sócios.
 
 ```bash
+clear
 curl -sS 'http://localhost:8080/v1/companies/00523856000141'
 ```
 
 ### Incluir os estabelecimentos da empresa
 
 ```bash
+clear
 curl -sS --get \
   'http://localhost:8080/v1/companies/00523856000141' \
   --data-urlencode 'include=establishments' \
@@ -76,9 +81,11 @@ zeros à esquerda. Não há validação de dígitos verificadores.
 
 `GET /v1/companies`
 
-Retorna empresas cuja razão social começa com o nome informado.
+Busca termos somente na razão social quando o Manticore está disponível.
+Quando desabilitado ou indisponível, busca pelo início da razão social no MySQL.
 
 ```bash
+clear
 curl -sS --get 'http://localhost:8080/v1/companies' \
   --data-urlencode 'name=SANTELLO' \
   --data-urlencode 'page=1' \
@@ -89,16 +96,19 @@ Cada item contém `cnpj`, `corporate_name`, `municipality`, `state` e `registrat
 preferencialmente o da matriz; na ausência dela, o menor CNPJ
 disponível para a empresa.
 
-Os resultados ficam em `data.companies.items`, ordenados por
-razão social e CNPJ básico da empresa.
+Os resultados ficam em `data.companies.items`. No MySQL, são ordenados por
+razão social e CNPJ básico; no Manticore, pelo ID do documento da empresa.
 
 ## Busca por nome fantasia
 
 `GET /v1/establishments`
 
-Retorna estabelecimentos cujo nome fantasia começa com o nome informado.
+Busca termos somente no nome fantasia de cada estabelecimento quando o
+Manticore está disponível. Quando desabilitado ou indisponível, busca pelo
+início do nome fantasia no MySQL.
 
 ```bash
+clear
 curl -sS --get 'http://localhost:8080/v1/establishments' \
   --data-urlencode 'name=SANTELLO' \
   --data-urlencode 'page=1' \
@@ -107,8 +117,8 @@ curl -sS --get 'http://localhost:8080/v1/establishments' \
 
 Cada item contém `cnpj`, `trade_name`, `corporate_name`, `municipality`, `state` e `registration_status`.
 
-Os resultados ficam em `data.establishments.items`, ordenados
-por nome fantasia e CNPJ.
+Os resultados ficam em `data.establishments.items`. No MySQL, são ordenados
+por nome fantasia e CNPJ; no Manticore, pelo ID do documento do estabelecimento.
 
 ## Município, UF e situação cadastral nos resumos
 
@@ -128,7 +138,7 @@ Nas buscas por razão social e sócio, o estabelecimento escolhido é
 preferencialmente a matriz; na ausência dela, o de menor CNPJ.
 Na busca por nome fantasia, os dados são do estabelecimento encontrado.
 
-Na busca por termos, o CNPJ é o armazenado no documento do Manticore.
+Nas buscas com Manticore, o CNPJ é o armazenado no documento correspondente.
 Os novos campos são consultados no MySQL em um único lote com os
 CNPJs da página, preservando itens, ordem, correspondências e paginação.
 Páginas vazias não executam essa consulta adicional.
@@ -137,7 +147,9 @@ Se um CNPJ não for encontrado no MySQL, o item é mantido com os novos
 campos nulos. Uma falha na consulta de enriquecimento retorna HTTP 500.
 MySQL e Manticore devem apontar para a mesma publicação.
 
-Essa melhoria não exige alterar a estrutura nem recarregar o Manticore.
+O enriquecimento não altera a estrutura dos documentos de busca. A seleção
+automática exige índices específicos por estabelecimento e por vínculo de sócio;
+o índice agregado por empresa continua atendendo razão social e `/v1/search`.
 
 ## Parâmetros das buscas por nome
 
@@ -145,14 +157,26 @@ Válidos para as buscas por razão social e nome fantasia:
 
 | Parâmetro | Obrigatório | Descrição |
 |---|---|---|
-| `name` | Sim | Prefixo do nome, entre 3 e 255 caracteres |
+| `name` | Sim | Nome entre 3 e 255 caracteres; termos no Manticore ou prefixo no MySQL |
 | `page` | Não | Página solicitada; padrão: 1 |
 | `page_size` | Não | Itens por página, de 1 a 100; padrão: 20 |
 
 Espaços nas extremidades de `name` são removidos.
-Os caracteres `%` e `_` são tratados literalmente.
+No MySQL, `%` e `_` são tratados literalmente. No Manticore, a pontuação
+é separadora e os operadores não são expostos. Todos os termos são
+obrigatórios, em qualquer ordem e posição no campo correspondente.
+Um texto composto somente por pontuação retorna lista vazia no Manticore.
 
-As buscas são por início do nome, não por palavras em qualquer posição.
+A seleção do mecanismo é independente em cada endpoint. Não há fallback
+por resultado vazio, entrada inválida, `SEARCH_TOO_BROAD`, erro SQL inesperado,
+falha de enriquecimento no MySQL ou cancelamento da requisição. Falhas de
+conexão, de leitura/escrita por timeout e ausência da tabela de busca permitem
+fallback. Uma tabela existente, porém incompleta, não aciona fallback.
+
+Cada resposta usa somente um mecanismo: itens e total não são misturados
+entre Manticore e MySQL. O fallback refaz a busca inteira pelo prefixo.
+A ordem e o universo de resultados podem mudar entre requisições se o
+mecanismo disponível mudar. Consulte [operação das buscas](search.md).
 
 ### Paginação
 
@@ -213,18 +237,23 @@ e os tempos observados.
 
 `GET /v1/partners`
 
-Sem `document`, busca pelo início do nome do sócio:
+Busca termos no nome do sócio usando Manticore, com fallback por prefixo
+no MySQL quando desabilitado ou indisponível:
 
 ```bash
+clear
 curl -sS --get 'http://localhost:8080/v1/partners' \
   --data-urlencode 'name=SANTELLO' \
   --data-urlencode 'page=1' \
   --data-urlencode 'page_size=5'
 ```
 
-Com `document`, busca por nome completo e documento por igualdade:
+O parâmetro opcional `document` acrescenta uma condição AND por igualdade
+ao documento armazenado. O nome mantém a busca por termos ou prefixo,
+conforme o mecanismo. A máscara é literal; `*` não funciona como curinga:
 
 ```bash
+clear
 curl -sS --get 'http://localhost:8080/v1/partners' \
   --data-urlencode 'name=SANTELLO PRA NIEDENS' \
   --data-urlencode 'document=***111769**'
@@ -232,7 +261,7 @@ curl -sS --get 'http://localhost:8080/v1/partners' \
 
 | Parâmetro | Obrigatório | Descrição |
 |---|---|---|
-| `name` | Sim | Nome entre 3 e 255 caracteres; prefixo sem documento, nome completo com documento |
+| `name` | Sim | Nome entre 3 e 255 caracteres; termos no Manticore ou prefixo no MySQL, inclusive com documento |
 | `document` | Não | Documento como consta na base, incluindo a máscara; entre 1 e 20 caracteres |
 | `page` | Não | Página solicitada; padrão: 1 |
 | `page_size` | Não | Itens por página, de 1 a 100; padrão: 20 |
@@ -252,6 +281,10 @@ Os resultados ficam em `data.partners.items`. Cada item contém:
 
 Um sócio pode aparecer vinculado a várias empresas. O documento
 mascarado ajuda a distinguir homônimos, mas não garante identidade.
+A unidade do resultado é o vínculo entre sócio e empresa: vínculos distintos
+com o mesmo nome e documento não são fundidos. O filtro de documento é
+aplicado antes da contagem, do limite de 1000 e da paginação.
+Não há esse filtro em `/v1/search`.
 
 A resposta inclui `data.partners.pagination`, no mesmo formato das
 demais buscas. Sem resultados, retorna HTTP 200 com `items: []`.
@@ -267,6 +300,7 @@ Busca termos na razão social, nos nomes fantasia e nos nomes dos sócios.
 Requer Manticore habilitado e dados indexados.
 
 ```bash
+clear
 curl -sS --get 'http://localhost:8080/v1/search' \
   --data-urlencode 'name=banco brasil' \
   --data-urlencode 'page=1' \
@@ -295,10 +329,13 @@ O campo `matched_fields` indica onde pelo menos um dos termos foi
 encontrado: `corporate_name` (razão social), `trade_names` (nomes fantasia)
 ou `partner_names` (nomes dos sócios).
 Os resultados ficam em `data.companies.items`, ordenados pelo identificador
-derivado do CNPJ básico, com paginação em `data.companies.pagination`.
+do documento, com paginação em `data.companies.pagination`. Os novos índices
+usam IDs sequenciais independentes do valor textual do CNPJ.
 
 Sem resultados, retorna HTTP 200 com `items: []`.
 Com Manticore desabilitado, retorna HTTP 503 com código `SEARCH_DISABLED`.
+Esse endpoint mantém o contrato de busca ampla e não utiliza o fallback dos
+três endpoints específicos; falhas de consulta retornam HTTP 500.
 
 ### Estado atual
 
@@ -328,7 +365,11 @@ Na busca por sócio, o limite também se aplica quando o documento
 Essa regra não altera a consulta direta por CNPJ nem a listagem
 de estabelecimentos incluída nos detalhes de uma empresa.
 
-## Medição local do enriquecimento
+## Medição local do enriquecimento — comportamento anterior
+
+Esta medição antecede a seleção automática: as três buscas específicas
+utilizavam prefixo no MySQL. Os universos das buscas por termos e por
+prefixo são diferentes, portanto seus tempos não são comparáveis diretamente.
 
 Medição realizada em 22/10/2026, com a consulta `SANTELLO`, página 1,
 MySQL 8.4.11 e Manticore 29.9.0 locais, na publicação 2026/08.
@@ -358,3 +399,12 @@ aproximadamente 1,8 ms para 20 itens e 4,6 ms para 100 itens.
 
 Esta amostra não mede concorrência, carga sustentada nem o tempo
 isolado das consultas SQL.
+
+## Consumo pelo Explorer
+
+A busca geral do Explorer pode chamar `/v1/companies`, `/v1/establishments`
+e `/v1/partners`, exibindo três seções com paginações independentes.
+Cada chamada filtra, conta e pagina sua própria entidade. Não se deve somar
+os totais nem aplicar `distinct` aos itens de páginas diferentes para criar
+uma paginação única. `/v1/search` continua sendo uma operação separada,
+agregada por empresa e com `matched_fields`.

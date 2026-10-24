@@ -11,7 +11,7 @@ import (
 )
 
 const createTableQuery = `
-	CREATE TABLE IF NOT EXISTS %s (
+	CREATE TABLE %s (
 		basic_cnpj string,
 		cnpj string,
 		corporate_name text,
@@ -23,6 +23,7 @@ const createTableQuery = `
 type Index struct {
 	db    *sql.DB
 	table string
+	ready bool
 }
 
 func NewIndex(db *sql.DB) *Index {
@@ -43,10 +44,19 @@ func NewIndexForTable(db *sql.DB, table string) (*Index, error) {
 	return &Index{db: db, table: table}, nil
 }
 
-func (index *Index) EnsureTable(ctx context.Context) error {
-	if _, err := index.db.ExecContext(ctx, fmt.Sprintf(createTableQuery, index.table)); err != nil {
+func (index *Index) RecreateTable(ctx context.Context) error {
+	index.ready = false
+	if _, err := index.db.ExecContext(ctx, "DROP TABLE IF EXISTS "+index.table); err != nil {
+		return fmt.Errorf("clear index destination %q: %w", index.table, err)
+	}
+
+	if _, err := index.db.ExecContext(
+		ctx, fmt.Sprintf(createTableQuery, index.table),
+	); err != nil {
 		return fmt.Errorf("create Manticore search table: %w", err)
 	}
+
+	index.ready = true
 	return nil
 }
 
@@ -57,14 +67,22 @@ func (index *Index) WriteBatch(
 	if len(documents) == 0 {
 		return nil
 	}
+	if !index.ready {
+		return fmt.Errorf("index destination must pass RecreateTable before writing")
+	}
 
 	values := make([]string, 0, len(documents))
 	arguments := make([]any, 0, len(documents)*6)
+	seenIDs := make(map[uint64]bool, len(documents))
 
 	for _, document := range documents {
 		if document.ID == 0 {
 			return fmt.Errorf("Manticore document ID must not be zero")
 		}
+		if seenIDs[document.ID] {
+			return fmt.Errorf("duplicate Manticore document ID in batch: %d", document.ID)
+		}
+		seenIDs[document.ID] = true
 
 		values = append(values, "(?, ?, ?, ?, ?, ?)")
 		arguments = append(arguments,
@@ -78,7 +96,7 @@ func (index *Index) WriteBatch(
 	}
 
 	query := `
-		REPLACE INTO ` + index.table + ` (
+		INSERT INTO ` + index.table + ` (
 			id,
 			basic_cnpj,
 			cnpj,

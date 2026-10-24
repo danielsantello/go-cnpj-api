@@ -86,3 +86,37 @@ Resultado: `created=1 existing=13`, totalizando 14 índices no catálogo.
 
 O total acumulado aproximado das criações passa a 23m27s,
 somando execuções distintas.
+
+## Índice de seleção do estabelecimento representante
+
+Índice `idx_establishments_root_head_office_cnpj`, nas colunas
+`(cnpj_root, head_office_branch_indicator, cnpj)`. Total do catálogo: 15 índices.
+
+Criado em 23/10/2026 na mesma publicação de referência:
+
+| Medição | Tempo observado |
+|---|---:|
+| Criação pelos logs, de 20:11:12 a 20:41:27 | 30m15s |
+| Execução completa com `time go run` | 30m16,418s |
+
+Resultado: `created=1 existing=14`. O índice cobre a seleção da matriz ou,
+na ausência dela, do menor CNPJ. A expressão de prioridade ainda pode
+exigir ordenação. Na leitura para indexação de sócios, a subconsulta usa
+`FORCE INDEX (idx_establishments_root_head_office_cnpj)`, pois o plano
+observado continuava escolhendo o índice simples após a criação.
+
+A CTE que seleciona as empresas do lote usa `SELECT STRAIGHT_JOIN` para
+impedir que os `EXISTS` sejam convertidos em um semijoin que percorra
+milhões de sócios antes do limite. Não há alteração nos registros da origem.
+
+Na amostra inicial do CNPJ básico `00000000`, com 41 vínculos:
+
+| Operação | Antes do uso do índice composto | Depois |
+|---|---:|---:|
+| Seleção isolada do CNPJ representante | 1.015,662 ms | 11,672 ms |
+| Leituras de lotes de 1 ou 8 vínculos | 804,967–1.128,493 ms | 7,392–15,457 ms |
+
+São observações de execuções sequenciais, sem controle de cache ou
+concorrência. O teste completo também faz consultas de conferência;
+sua duração não representa apenas o custo da leitura para indexação.
+Esses tempos não estimam a duração de uma carga completa.

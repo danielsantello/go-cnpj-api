@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -61,7 +62,7 @@ func TestCompanyRepositorySearchByPartnerNameIntegration(t *testing.T) {
 
 		for index, item := range result.Items {
 			if options.Document != nil &&
-				(item.Name != options.Name ||
+				(!strings.HasPrefix(item.Name, options.Name) ||
 					item.Document == nil ||
 					*item.Document != *options.Document) {
 				t.Fatalf("unexpected exact match at index %d: %#v", index, item)
@@ -109,11 +110,11 @@ func TestCompanyRepositorySearchByPartnerNameIntegration(t *testing.T) {
 		prefixResult = check(t, options)
 	})
 
-	t.Run("name and document", func(t *testing.T) {
+	t.Run("name prefix and document", func(t *testing.T) {
 		for _, item := range prefixResult.Items {
 			if item.Document != nil {
 				exact := options
-				exact.Name = item.Name
+				exact.Name = options.Name
 				exact.Document = item.Document
 				check(t, exact)
 				return

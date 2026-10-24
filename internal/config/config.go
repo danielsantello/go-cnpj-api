@@ -37,35 +37,45 @@ const (
 	defaultManticorePort           = uint16(9306)
 	defaultManticoreTable          = "cnpj_companies"
 	defaultManticoreConnectTimeout = 5 * time.Second
+
+	manticoreEstablishmentsTableEnvironmentVariable = "CNPJ_API_MANTICORE_ESTABLISHMENTS_TABLE"
+	manticorePartnersTableEnvironmentVariable       = "CNPJ_API_MANTICORE_PARTNERS_TABLE"
+
+	defaultManticoreEstablishmentsTable = "cnpj_establishments"
+	defaultManticorePartnersTable       = "cnpj_partners"
 )
 
 type Config struct {
-	HTTPAddress             string
-	ShutdownTimeout         time.Duration
-	MySQLHost               string
-	MySQLPort               uint16
-	MySQLDatabase           string
-	MySQLUser               string
-	MySQLPassword           string
-	MySQLConnectTimeout     time.Duration
-	ManticoreEnabled        bool
-	ManticoreHost           string
-	ManticorePort           uint16
-	ManticoreTable          string
-	ManticoreConnectTimeout time.Duration
+	HTTPAddress                  string
+	ShutdownTimeout              time.Duration
+	MySQLHost                    string
+	MySQLPort                    uint16
+	MySQLDatabase                string
+	MySQLUser                    string
+	MySQLPassword                string
+	MySQLConnectTimeout          time.Duration
+	ManticoreEnabled             bool
+	ManticoreHost                string
+	ManticorePort                uint16
+	ManticoreTable               string
+	ManticoreConnectTimeout      time.Duration
+	ManticoreEstablishmentsTable string
+	ManticorePartnersTable       string
 }
 
 func Default() Config {
 	return Config{
-		HTTPAddress:             defaultHTTPAddress,
-		ShutdownTimeout:         defaultShutdownTimeout,
-		MySQLHost:               defaultMySQLHost,
-		MySQLPort:               defaultMySQLPort,
-		MySQLConnectTimeout:     defaultMySQLConnectTimeout,
-		ManticoreHost:           defaultManticoreHost,
-		ManticorePort:           defaultManticorePort,
-		ManticoreTable:          defaultManticoreTable,
-		ManticoreConnectTimeout: defaultManticoreConnectTimeout,
+		HTTPAddress:                  defaultHTTPAddress,
+		ShutdownTimeout:              defaultShutdownTimeout,
+		MySQLHost:                    defaultMySQLHost,
+		MySQLPort:                    defaultMySQLPort,
+		MySQLConnectTimeout:          defaultMySQLConnectTimeout,
+		ManticoreHost:                defaultManticoreHost,
+		ManticorePort:                defaultManticorePort,
+		ManticoreTable:               defaultManticoreTable,
+		ManticoreConnectTimeout:      defaultManticoreConnectTimeout,
+		ManticoreEstablishmentsTable: defaultManticoreEstablishmentsTable,
+		ManticorePartnersTable:       defaultManticorePartnersTable,
 	}
 }
 
@@ -172,6 +182,13 @@ func Load() (Config, error) {
 		config.ManticoreTable = value
 	}
 
+	if value, exists := os.LookupEnv(manticoreEstablishmentsTableEnvironmentVariable); exists {
+		config.ManticoreEstablishmentsTable = value
+	}
+	if value, exists := os.LookupEnv(manticorePartnersTableEnvironmentVariable); exists {
+		config.ManticorePartnersTable = value
+	}
+
 	return config, nil
 }
 
@@ -216,6 +233,9 @@ func Validate(config Config) error {
 	}
 
 	if config.ManticoreEnabled {
+		if err := validateManticoreEntityTables(config); err != nil {
+			return err
+		}
 		if !regexp.MustCompile(
 			`^cnpj_companies(_[a-z0-9_]{1,48})?$`,
 		).MatchString(config.ManticoreTable) {

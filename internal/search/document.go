@@ -20,6 +20,6 @@ type Source interface {
 }
 
 type Index interface {
-	EnsureTable(ctx context.Context) error
+	RecreateTable(ctx context.Context) error
 	WriteBatch(ctx context.Context, documents []Document) error
 }

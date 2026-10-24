@@ -6,21 +6,28 @@ import (
 	"fmt"
 )
 
-func ValidateDropTable(table string, activeTable string) error {
-	if table != "cnpj_companies" &&
-		!indexTableNamePattern.MatchString(table) {
+func validSearchTableName(table string) bool {
+	return table == "cnpj_companies" ||
+		indexTableNamePattern.MatchString(table) ||
+		establishmentTableNamePattern.MatchString(table) ||
+		partnerTableNamePattern.MatchString(table)
+}
+
+func ValidateDropTable(table string, activeTables ...string) error {
+	if !validSearchTableName(table) {
 		return fmt.Errorf("invalid Manticore table name: %q", table)
 	}
-
-	if activeTable != "cnpj_companies" &&
-		!indexTableNamePattern.MatchString(activeTable) {
-		return fmt.Errorf("invalid active Manticore table name: %q", activeTable)
+	if len(activeTables) == 0 {
+		return fmt.Errorf("active Manticore tables must be supplied")
 	}
-
-	if table == activeTable {
-		return fmt.Errorf("cannot drop active Manticore table: %s", table)
+	for _, activeTable := range activeTables {
+		if !validSearchTableName(activeTable) {
+			return fmt.Errorf("invalid active Manticore table name: %q", activeTable)
+		}
+		if table == activeTable {
+			return fmt.Errorf("cannot drop active Manticore table: %s", table)
+		}
 	}
-
 	return nil
 }
 
@@ -28,9 +35,9 @@ func DropTable(
 	ctx context.Context,
 	db *sql.DB,
 	table string,
-	activeTable string,
+	activeTables ...string,
 ) error {
-	if err := ValidateDropTable(table, activeTable); err != nil {
+	if err := ValidateDropTable(table, activeTables...); err != nil {
 		return err
 	}
 

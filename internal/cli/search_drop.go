@@ -41,6 +41,8 @@ func runSearchDrop(args []string) error {
 	if err := manticorestorage.ValidateDropTable(
 		*table,
 		configuration.ManticoreTable,
+		configuration.ManticoreEstablishmentsTable,
+		configuration.ManticorePartnersTable,
 	); err != nil {
 		return err
 	}
@@ -61,7 +63,9 @@ func runSearchDrop(args []string) error {
 	slog.Info(
 		"dropping Manticore search table",
 		"table", *table,
-		"active_table", configuration.ManticoreTable,
+		"active_companies_table", configuration.ManticoreTable,
+		"active_establishments_table", configuration.ManticoreEstablishmentsTable,
+		"active_partners_table", configuration.ManticorePartnersTable,
 	)
 
 	if err := manticorestorage.DropTable(
@@ -69,6 +73,8 @@ func runSearchDrop(args []string) error {
 		manticore,
 		*table,
 		configuration.ManticoreTable,
+		configuration.ManticoreEstablishmentsTable,
+		configuration.ManticorePartnersTable,
 	); err != nil {
 		return err
 	}

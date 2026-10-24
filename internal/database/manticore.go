@@ -14,6 +14,7 @@ type ManticoreConfig struct {
 	Host           string
 	Port           uint16
 	ConnectTimeout time.Duration
+	IOTimeout      time.Duration
 }
 
 func OpenManticore(config ManticoreConfig) (*sql.DB, error) {
@@ -25,6 +26,8 @@ func OpenManticore(config ManticoreConfig) (*sql.DB, error) {
 		strconv.FormatUint(uint64(config.Port), 10),
 	)
 	driverConfig.Timeout = config.ConnectTimeout
+	driverConfig.ReadTimeout = config.IOTimeout
+	driverConfig.WriteTimeout = config.IOTimeout
 
 	// Manticore does not use MySQL prepared statements.
 	driverConfig.InterpolateParams = true

@@ -54,3 +54,30 @@ func TestValidateDropTable(t *testing.T) {
 		})
 	}
 }
+
+func TestDropProtectsEveryActiveTable(t *testing.T) {
+	active := []string{
+		"cnpj_companies_2026_08",
+		"cnpj_establishments_2026_08",
+		"cnpj_partners_2026_08",
+	}
+	for _, table := range active {
+		if err := ValidateDropTable(table, active...); err == nil {
+			t.Fatalf("active table %q must be protected", table)
+		}
+	}
+	for _, table := range []string{
+		"cnpj_establishments_2026_07", "cnpj_partners_2026_07",
+		"cnpj_establishments", "cnpj_partners",
+	} {
+		if err := ValidateDropTable(table, active...); err != nil {
+			t.Fatalf("inactive table %q must be accepted: %v", table, err)
+		}
+	}
+	if err := ValidateDropTable("cnpj_partners_test"); err == nil {
+		t.Fatal("missing active-table configuration must fail")
+	}
+	if err := ValidateDropTable("cnpj_partners_test; DROP TABLE x", active...); err == nil {
+		t.Fatal("invalid identifier must fail")
+	}
+}

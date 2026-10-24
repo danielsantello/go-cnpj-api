@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/danielsantello/go-cnpj-api/internal/search"
@@ -33,7 +32,7 @@ func (source *SearchSource) ReadBatch(
 		WHERE cnpj_root > ?
 		ORDER BY cnpj_root
 		LIMIT ?
-	`, afterBasicCNPJ, limit)
+	`, afterBasicCNPJ, limit+1)
 	if err != nil {
 		return nil, fmt.Errorf("query indexing companies: %w", err)
 	}
@@ -47,14 +46,16 @@ func (source *SearchSource) ReadBatch(
 			return nil, fmt.Errorf("scan indexing company: %w", err)
 		}
 
-		root, err := strconv.ParseUint(document.BasicCNPJ, 10, 64)
-		if err != nil {
+		previous := afterBasicCNPJ
+		if len(documents) > 0 {
+			previous = documents[len(documents)-1].BasicCNPJ
+		}
+		if document.BasicCNPJ <= previous {
 			rows.Close()
-			return nil, fmt.Errorf("parse basic CNPJ %q: %w", document.BasicCNPJ, err)
+			return nil, fmt.Errorf("unordered or repeated company basic CNPJ: previous=%q current=%q",
+				previous, document.BasicCNPJ)
 		}
 
-		// Manticore document IDs must be nonzero.
-		document.ID = root + 1
 		documents = append(documents, document)
 	}
 
@@ -65,6 +66,9 @@ func (source *SearchSource) ReadBatch(
 	}
 	if closeErr != nil {
 		return nil, fmt.Errorf("close indexing companies: %w", closeErr)
+	}
+	if len(documents) > limit {
+		documents = documents[:limit]
 	}
 	if len(documents) == 0 {
 		return documents, nil

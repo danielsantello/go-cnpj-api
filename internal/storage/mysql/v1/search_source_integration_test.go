@@ -64,7 +64,7 @@ func TestSearchSourceReadBatchIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if document.CorporateName != corporateName || document.ID == 0 {
+		if document.CorporateName != corporateName || document.ID != 0 {
 			t.Fatalf("unexpected company document: %#v", document)
 		}
 
@@ -148,4 +148,46 @@ func TestSearchSourceReadBatchIntegration(t *testing.T) {
 	}
 
 	t.Logf("validated %d companies and %d in the next batch", len(documents), len(next))
+}
+
+func TestSearchSourceRejectsDuplicateAtBatchBoundaryIntegration(t *testing.T) {
+	if os.Getenv("CNPJ_API_RUN_INTEGRATION_TESTS") != "1" {
+		t.Skip("integration tests are disabled")
+	}
+	configuration, err := config.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := database.OpenMySQL(database.MySQLConfig{
+		Host:           configuration.MySQLHost,
+		Port:           configuration.MySQLPort,
+		Database:       configuration.MySQLDatabase,
+		User:           configuration.MySQLUser,
+		Password:       configuration.MySQLPassword,
+		ConnectTimeout: configuration.MySQLConnectTimeout,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	// The temporary table shadows companies only on this private connection.
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if _, err := db.ExecContext(ctx, `CREATE TEMPORARY TABLE companies (
+		cnpj_root VARCHAR(8) NOT NULL,
+		legal_name VARCHAR(255) NOT NULL,
+		INDEX idx_companies_cnpj_root (cnpj_root)
+	)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO companies (cnpj_root, legal_name)
+		VALUES ('12ABC345', 'PRIMEIRA'), ('12ABC345', 'SEGUNDA')`); err != nil {
+		t.Fatal(err)
+	}
+	_, err = NewSearchSource(db).ReadBatch(ctx, "", 1)
+	if err == nil || !strings.Contains(err.Error(), "repeated company basic CNPJ") {
+		t.Fatalf("duplicate crossing the batch boundary must stop indexing: %v", err)
+	}
 }

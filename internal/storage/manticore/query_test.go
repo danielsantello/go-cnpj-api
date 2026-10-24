@@ -37,3 +37,25 @@ func TestFieldSearchExpression(t *testing.T) {
 		t.Fatalf("expected empty expression, got %q", got)
 	}
 }
+
+func TestCorporateNameSearchExpression(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"banco brasil", `@corporate_name ("banco" "brasil")`},
+		{"  São-Paulo  ", `@corporate_name ("São" "Paulo")`},
+		{"empresa | socio", `@corporate_name ("empresa" "socio")`},
+		{"!!!", ""},
+		{"", ""},
+	}
+
+	for _, test := range tests {
+		t.Run(test.input, func(t *testing.T) {
+			got := corporateNameSearchExpression(test.input)
+			if got != test.want {
+				t.Fatalf("expected %q, got %q", test.want, got)
+			}
+		})
+	}
+}

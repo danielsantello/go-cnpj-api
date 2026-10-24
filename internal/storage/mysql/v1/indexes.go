@@ -19,6 +19,15 @@ func RequiredIndexes() []IndexDefinition {
 			Columns: []string{"cnpj_root"},
 		},
 		{
+			Name:  "idx_establishments_root_head_office_cnpj",
+			Table: "establishments",
+			Columns: []string{
+				"cnpj_root",
+				"head_office_branch_indicator",
+				"cnpj",
+			},
+		},
+		{
 			Name:    "idx_establishments_trade_name_cnpj",
 			Table:   "establishments",
 			Columns: []string{"trade_name", "cnpj"},

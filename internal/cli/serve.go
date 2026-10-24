@@ -34,7 +34,7 @@ func serve() error {
 	}
 	defer closeMySQL(mysqlDatabase)
 
-	manticore, err := initializeManticore(configuration)
+	manticore, err := initializeManticoreForServer(configuration)
 	if err != nil {
 		return err
 	}
@@ -48,23 +48,15 @@ func serve() error {
 		return fmt.Errorf("initialize company repository: %w", err)
 	}
 
-	companyService := company.NewService(companyRepository)
-
 	var searchPinger httpapi.MySQLPinger
 	if manticore != nil {
 		searchPinger = manticore
 	}
 
 	var searchRepository search.Repository
-	if manticore != nil {
-		repository, err := manticorestorage.NewRepositoryForTable(
-			manticore,
-			configuration.ManticoreTable,
-		)
-		if err != nil {
-			return fmt.Errorf("initialize Manticore search repository: %w", err)
-		}
+	var nameSearchRepository company.NameSearchRepository
 
+	if manticore != nil {
 		enrichmentRepository, err := mysqlstorage.NewSearchEnrichmentRepository(
 			mysqlDatabase,
 			formatVersion,
@@ -73,16 +65,69 @@ func serve() error {
 			return fmt.Errorf("initialize search enrichment repository: %w", err)
 		}
 
+		repository, err := manticorestorage.NewRepositoryForTable(
+			manticore,
+			configuration.ManticoreTable,
+		)
+		if err != nil {
+			return fmt.Errorf("initialize Manticore search repository: %w", err)
+		}
 		searchRepository = search.NewEnrichedRepository(
 			repository,
 			enrichmentRepository,
 		)
 
+		corporateNames, err := manticorestorage.NewNameRepository(
+			manticore,
+			configuration.ManticoreTable,
+			enrichmentRepository,
+		)
+		if err != nil {
+			return fmt.Errorf("initialize corporate name search: %w", err)
+		}
+
+		tradeNames, err := manticorestorage.NewEstablishmentRepository(
+			manticore,
+			configuration.ManticoreEstablishmentsTable,
+			enrichmentRepository,
+		)
+		if err != nil {
+			return fmt.Errorf("initialize trade name search: %w", err)
+		}
+
+		partnerNames, err := manticorestorage.NewPartnerRepository(
+			manticore,
+			configuration.ManticorePartnersTable,
+			enrichmentRepository,
+		)
+		if err != nil {
+			return fmt.Errorf("initialize partner name search: %w", err)
+		}
+
+		nameSearchRepository = struct {
+			*manticorestorage.NameRepository
+			*manticorestorage.EstablishmentRepository
+			*manticorestorage.PartnerRepository
+		}{
+			NameRepository:          corporateNames,
+			EstablishmentRepository: tradeNames,
+			PartnerRepository:       partnerNames,
+		}
+
 		slog.Info(
-			"Manticore search table configured",
-			"table", configuration.ManticoreTable,
+			"Manticore search tables configured",
+			"companies", configuration.ManticoreTable,
+			"establishments", configuration.ManticoreEstablishmentsTable,
+			"partners", configuration.ManticorePartnersTable,
 		)
 	}
+
+	companyService := company.NewService(
+		company.NewAutomaticRepository(
+			companyRepository,
+			nameSearchRepository,
+		),
+	)
 
 	broadSearchService := search.NewService(searchRepository)
 

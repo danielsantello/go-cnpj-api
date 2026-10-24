@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"regexp"
 	"syscall"
 	"time"
 
@@ -21,13 +20,17 @@ func runSearch(args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("search command is required")
 	}
+	if args[0] == "index-partners" {
+		return runPartnerIndex(args[1:])
+	}
+	if args[0] == "index-establishments" {
+		return runEstablishmentIndex(args[1:])
+	}
+	if args[0] == "drop" {
+		return runSearchDrop(args[1:])
+	}
 	if args[0] != "index" {
-		if args[0] == "drop" {
-			return runSearchDrop(args[1:])
-		}
-		if args[0] != "index" {
-			return fmt.Errorf("unknown search command: %s", args[0])
-		}
+		return fmt.Errorf("unknown search command: %s", args[0])
 	}
 
 	flags := flag.NewFlagSet("search index", flag.ContinueOnError)
@@ -35,7 +38,6 @@ func runSearch(args []string) error {
 	batchSize := flags.Int("batch-size", 100, "companies per batch")
 	all := flags.Bool("all", false, "index all companies")
 	table := flags.String("table", "", "destination table, such as cnpj_companies_2026_08")
-	after := flags.String("after", "", "resume after this 8-digit basic CNPJ")
 
 	if err := flags.Parse(args[1:]); err != nil {
 		return err
@@ -65,13 +67,12 @@ func runSearch(args []string) error {
 		return fmt.Errorf("batch-size must be between 1 and 1000")
 	}
 
-	if *after != "" {
-		if !regexp.MustCompile(`^[0-9]{8}$`).MatchString(*after) {
-			return fmt.Errorf("after must contain exactly 8 digits")
-		}
-		if *table == "" {
-			return fmt.Errorf("resuming requires an explicit destination table")
-		}
+	if *table == "" {
+		return fmt.Errorf("indexing requires an explicit destination table")
+	}
+
+	if _, err := manticorestorage.NewIndexForTable(nil, *table); err != nil {
+		return err
 	}
 
 	configuration, err := config.Load()
@@ -80,6 +81,12 @@ func runSearch(args []string) error {
 	}
 	if err := config.Validate(configuration); err != nil {
 		return fmt.Errorf("validate configuration: %w", err)
+	}
+	if configuration.IsActiveSearchTable(*table) {
+		return fmt.Errorf(
+			"refusing to index into the configured active table %q",
+			*table,
+		)
 	}
 	if !configuration.ManticoreEnabled {
 		return fmt.Errorf("Manticore must be enabled to index companies")
@@ -101,12 +108,9 @@ func runSearch(args []string) error {
 	}
 	defer closeManticore(manticore)
 
-	destination := manticorestorage.NewIndex(manticore)
-	if *table != "" {
-		destination, err = manticorestorage.NewIndexForTable(manticore, *table)
-		if err != nil {
-			return err
-		}
+	destination, err := manticorestorage.NewIndexForTable(manticore, *table)
+	if err != nil {
+		return err
 	}
 
 	ctx, stop := signal.NotifyContext(
@@ -124,7 +128,7 @@ func runSearch(args []string) error {
 		"batch_size", *batchSize,
 		"all", *all,
 		"destination_table", *table,
-		"after_basic_cnpj", *after,
+		"recreate_destination", true,
 	)
 
 	result, err := search.BuildIndex(
@@ -132,31 +136,25 @@ func runSearch(args []string) error {
 		mysqlv1.NewSearchSource(mysqlDatabase),
 		destination,
 		search.IndexOptions{
-			BatchSize:      *batchSize,
-			Limit:          *limit,
-			All:            *all,
-			AfterBasicCNPJ: *after,
+			BatchSize: *batchSize,
+			Limit:     *limit,
+			All:       *all,
 		},
 		func(progress search.IndexProgress) {
 			slog.Info(
 				"search indexing progress",
 				"processed", progress.Processed,
-				"last_basic_cnpj", progress.LastBasicCNPJ,
 				"elapsed", time.Since(started),
 			)
 		},
 	)
 	if err != nil {
-		return fmt.Errorf(
-			"index companies after %d documents (last basic CNPJ %q): %w",
-			result.Processed, result.LastBasicCNPJ, err,
-		)
+		return fmt.Errorf("index companies after %d documents; rerun to reload from zero: %w", result.Processed, err)
 	}
 
 	slog.Info(
 		"search indexing completed",
 		"processed", result.Processed,
-		"last_basic_cnpj", result.LastBasicCNPJ,
 		"elapsed", time.Since(started),
 	)
 	return nil
